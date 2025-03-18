@@ -1,0 +1,176 @@
+{
+  "core_mindset": [
+    "Think in distributions and expectations, not point estimates.",
+    "Assume every abstraction leaks; know the underlying implementation.",
+    "Bias toward simplicity, robustness, and debuggability before clever optimizations.",
+    "Continuously ask 'what can go wrong?' and design for failure modes.",
+    "Use data to arbitrate decisions; measure before tuning or refactoring.",
+    "Prefer reversible decisions and incremental change over big bangs.",
+    "Treat latency, memory, and correctness as first-class product features.",
+    "Keep a small set of organizing mental models and reuse them across domains.",
+    "Automate any task done more than twice when automation cost is justified.",
+    "Prefer explicitness over magic; surprise is a design smell."
+  ],
+  "engineering_principles": [
+    "Separate concerns: isolate business logic, orchestration, IO, and configuration.",
+    "Design clear contracts and invariants between components.",
+    "Favor composition over inheritance and deep hierarchies.",
+    "Minimize global mutable state; localize side effects.",
+    "Design for read-heavy workloads and cheap introspection (logging, tracing, counters).",
+    "Make the cost of an operation predictable; avoid hidden complexity in hot paths.",
+    "Use idempotency for retries and at-least-once semantics.",
+    "Prefer declarative configuration and infrastructure definitions.",
+    "Keep operational complexity proportional to system value.",
+    "Prefer stable, narrow interfaces between subsystems to reduce coupling."
+  ],
+  "design_patterns_and_architectural_styles": [
+    "Apply domain-driven design for complex domains (bounded contexts, aggregates, value objects).",
+    "Use CQRS when read and write workloads have divergent scaling and consistency needs.",
+    "Use event sourcing where auditability and replayability outweigh complexity.",
+    "Apply hexagonal/ports-and-adapters architecture to isolate domain logic from infrastructure.",
+    "Use pub-sub and event-driven patterns for decoupled integrations.",
+    "Use the saga pattern for long-running, distributed workflows and compensation.",
+    "Use batch-plus-stream (lambda/kappa-like) architectures for analytics and realtime views.",
+    "Apply stratified design: core, platform, and product layers with clear boundaries.",
+    "Use factories/builders only where construction is complex or context-dependent.",
+    "Favor pipeline patterns (stages with clear contracts) for data and processing systems."
+  ],
+  "system_design": [
+    "Explicitly model data flows, control flows, and failure domains.",
+    "Separate control planes from data planes.",
+    "Use backpressure and bounded queues to avoid unbounded resource growth.",
+    "Prefer pull-based ingestion and streaming when latency matters.",
+    "Make state ownership and lifecycle explicit (who writes, who reads, who deletes).",
+    "Design for horizontal scaling first; use vertical scaling as an optimization.",
+    "Introduce caches only with clear invalidation and observability plans.",
+    "Use bulkheads and circuit breakers between critical components.",
+    "Design APIs that are stable, backwards-compatible, and evolvable.",
+    "Keep critical paths short and simple; push complexity to the edges.",
+    "Co-design APIs and data models; avoid leaking internal schemas to external callers."
+  ],
+  "distributed_systems": [
+    "Assume partial failure, network partitions, and out-of-order messages.",
+    "Understand and document consistency models per subsystem.",
+    "Prefer idempotent operations and unique request IDs for retries and deduplication.",
+    "Use monotonic identifiers and logical clocks where ordering matters.",
+    "Minimize cross-region synchronous dependencies; favor async replication and fan-out.",
+    "Co-locate compute with data to reduce cross-AZ and cross-region traffic.",
+    "Model systems with queueing theory and Little's Law where applicable.",
+    "Design sharding schemes that can be rebalanced without downtime.",
+    "Avoid distributed transactions where possible; use sagas and compensation instead.",
+    "Use deterministic workflows and replay for recovery and auditability.",
+    "Make time-synchronization assumptions explicit and monitor clock skew."
+  ],
+  "data_and_query_engines": [
+    "Separate ingestion, storage, indexing, and query serving concerns.",
+    "Choose file formats by access pattern (scan-heavy vs point lookup vs column pruning).",
+    "Partition and cluster data to match primary query dimensions.",
+    "Push computation to where data lives; avoid unnecessary materialization and copies.",
+    "Design schemas to be append-friendly and immutable where feasible.",
+    "Use statistics and cost-based optimization instead of hand-tuning queries prematurely.",
+    "Manage metadata (schemas, catalogs, lineage) as rigorously as data.",
+    "Model workloads (OLTP vs OLAP vs streaming) and choose systems accordingly.",
+    "Build idempotent, restartable pipelines with exactly-once semantics where needed.",
+    "Prefer late materialization and columnar execution for analytical workloads.",
+    "Use sampling, EXPLAIN plans, and runtime metrics to validate query plans."
+  ],
+  "quantitative_trading_and_math": [
+    "Decompose PnL into signal, risk, execution, and costs; attribute each explicitly.",
+    "Treat every strategy as hypothesis testing with out-of-sample validation.",
+    "Respect time-ordering; never leak future information into training or backtests.",
+    "Model distributions, tails, and regime changes; assume non-stationarity.",
+    "Use robust statistics and regularization to reduce overfitting and variance.",
+    "Separate signal generation, portfolio construction, and execution layers.",
+    "Continuously monitor slippage, transaction costs, and impact versus expectations.",
+    "Stress-test systems and strategies under historical stress and synthetic shocks.",
+    "Favor simple, explainable models that survive transaction costs over fragile complexity.",
+    "Quantify uncertainty and confidence intervals around all key estimates.",
+    "Use proper scoring rules and risk-adjusted metrics (e.g., Sharpe, drawdown) for evaluation."
+  ],
+  "coding_practices": {
+    "general": [
+      "Prefer small, focused functions with single responsibilities.",
+      "Keep modules cohesive and loosely coupled.",
+      "Use clear, intention-revealing names; avoid opaque abbreviations.",
+      "Guard invariants with assertions and runtime checks in critical paths.",
+      "Fail fast on programmer errors; fail gracefully on user or environment errors.",
+      "Prefer immutable data structures where practical.",
+      "Avoid premature abstraction; duplicate once, abstract the third time.",
+      "Default to pure functions in core logic; isolate IO at boundaries.",
+      "Keep public APIs minimal, orthogonal, and stable; hide implementation details.",
+      "Use code review as a technical correctness and simplification gate, not just style."
+    ],
+    "python": [
+      "Use type hints and static analysis (e.g., mypy, pyright) for non-trivial codebases.",
+      "Prefer dataclasses or structured models over ad-hoc dicts and tuples.",
+      "Leverage vectorized libraries (NumPy, pandas) for numeric workloads.",
+      "Avoid heavy Python-level objects in tight loops; move hotspots to C++/Cython/Numba when needed.",
+      "Isolate environments via virtualenvs and lock dependencies with hashes.",
+      "Use asyncio or structured concurrency for IO-heavy workloads instead of ad-hoc threading.",
+      "Avoid global state and module-level side effects; use explicit dependency injection.",
+      "Encode configuration via pydantic/typed models rather than raw env vars or dicts."
+    ],
+    "cpp": [
+      "Use RAII to manage resources deterministically (memory, file handles, sockets).",
+      "Prefer value semantics and smart pointers over raw new/delete.",
+      "Minimize heap allocations in hot paths; reuse buffers and use arenas/pools when sensible.",
+      "Avoid undefined behavior; rely on sanitizers, static analyzers, and warnings-as-errors.",
+      "Use move semantics, constexpr, and inline where they yield real benefits.",
+      "Isolate inline assembly and platform-specific code behind clean interfaces.",
+      "Keep ABI boundaries narrow; hide templates and heavy types behind PIMPL or facade patterns.",
+      "Prefer STL algorithms and containers over bespoke data structures unless profiling demands otherwise."
+    ]
+  },
+  "testing_and_verification": [
+    "Write tests for invariants and edge cases, not just happy-path examples.",
+    "Use property-based testing for core algorithms and data structures.",
+    "Test race conditions and concurrency primitives with stress and fuzz tests.",
+    "Use golden tests for serialization formats, wire protocols, and external interfaces.",
+    "Maintain deterministic, hermetic test environments for core logic.",
+    "Continuously run regression suites on representative data and workloads.",
+    "Include runtime sanity checks and alarms in production for key invariants.",
+    "Use shadow deployments and replay of real traffic to validate major changes."
+  ],
+  "performance": [
+    "Profile before optimizing; never guess about bottlenecks.",
+    "Measure CPU, memory, IO, GC, and latency separately with appropriate tools.",
+    "Understand hardware (cache hierarchies, NUMA, vectorization, branch prediction).",
+    "Design data layouts for locality and cache friendliness.",
+    "Use batching and vectorization to amortize overhead and improve throughput.",
+    "Keep hot paths allocation-free or allocation-light when possible.",
+    "Avoid needless synchronization; reduce contention via sharding and lock-free or wait-free structures.",
+    "Track tail latencies (p99, p999), not just averages or medians.",
+    "Use load tests and capacity planning to understand scaling behavior before peak events."
+  ],
+  "observability_and_debugging": [
+    "Emit structured logs with correlation IDs and key fields for joins.",
+    "Expose metrics for rate, errors, latency, saturation, and key domain counters.",
+    "Trace critical request paths across services using distributed tracing.",
+    "Capture inputs/outputs around critical algorithms for forensic analysis when safe.",
+    "Use feature flags and kill switches for risky changes and rollbacks.",
+    "Keep debugging tools ready: heap dumps, core dumps, tracing, packet captures, profilers.",
+    "Prefer explanations that can be validated with one query or graph during incidents.",
+    "Make it cheap to ask 'what is happening right now?' in production."
+  ],
+  "infra_and_reliability": [
+    "Define infrastructure as code; avoid snowflake environments.",
+    "Use staged rollouts (canary, shadow, A/B) for risky or large changes.",
+    "Design health checks and readiness probes that reflect real availability and correctness.",
+    "Plan for graceful degradation under partial failures and overload.",
+    "Automate backups, restores, and disaster recovery drills; regularly test them.",
+    "Rotate keys and secrets automatically; minimize their blast radius and lifetime.",
+    "Use quotas and rate limits at edges to protect core systems and dependencies.",
+    "Keep dependency graphs shallow; avoid single critical third-party points of failure."
+  ],
+  "ownership_and_execution": [
+    "Own systems end-to-end: design, implementation, verification, and operation.",
+    "Keep runbooks and playbooks up to date with real incident learnings.",
+    "Prefer small, frequent deploys to large, risky releases.",
+    "Document decisions, trade-offs, and rejected alternatives concisely and durably.",
+    "Maintain a prioritized backlog of tech debt with explicit payoff rationale.",
+    "Regularly simplify and delete unused code, data, and systems to reduce drag.",
+    "Continuously tighten feedback loops between code, metrics, and user impact.",
+    "Treat every incident and bug as a chance to improve design, tooling, and process."
+  ]
+}
+
