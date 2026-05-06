@@ -45,7 +45,7 @@ fi
 info "Phase 2: Homebrew packages"
 
 FORMULAE=(
-  tmux neovim eza neofetch bat
+  tmux neovim eza fastfetch bat
   zsh-syntax-highlighting zoxide fzf ripgrep fd
   node python@3.13 luarocks
   stylua clang-format sqlfluff go

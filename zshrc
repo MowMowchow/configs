@@ -142,8 +142,8 @@ alias ls="eza --long --git --color=always --icons=always"
 # }
 # add-zsh-hook chpwd tmux-window-name
 
-# neofetch
-neofetch
+# system info banner — fastfetch is the active maintained replacement for neofetch
+fastfetch
 
 
 ### TMUX WINDOW RENAMING
