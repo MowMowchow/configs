@@ -46,10 +46,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn resolve_bin_returns_absolute_path_when_binary_exists() {
-        // /bin/sh exists on every Unix; it's not in our candidate dirs, but
-        // we use it here only to assert the fallback returns the bare name
-        // when nothing in candidates matches.
+    fn resolve_bin_falls_back_to_bare_name_when_not_in_candidates() {
+        // The candidate dirs (/opt/homebrew/bin, /usr/local/bin on macOS;
+        // /usr/local/bin, /usr/bin on Linux) won't contain this fake name,
+        // so resolve_bin must return it unchanged for OS PATH lookup.
         let result = resolve_bin("definitely-not-a-real-binary-xyz");
         assert_eq!(result, "definitely-not-a-real-binary-xyz");
     }
