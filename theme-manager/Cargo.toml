@@ -2,7 +2,7 @@
 name = "theme-manager"
 version = "0.1.0"
 edition = "2021"
-description = "Unified macOS theme manager for kitty, neovim, tmux, and spicetify"
+description = "Unified theme manager (macOS + Linux) for kitty, neovim, and tmux"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
