@@ -7,16 +7,11 @@ use std::time::Duration;
 
 const TMUX_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// Resolve the tmux binary path. The daemon runs under launchd with a
-/// minimal PATH that doesn't include /opt/homebrew/bin, so we check
-/// known locations explicitly (same pattern as the neovim adapter).
-fn tmux_bin() -> &'static str {
-    for path in &["/opt/homebrew/bin/tmux", "/usr/local/bin/tmux"] {
-        if std::path::Path::new(path).exists() {
-            return path;
-        }
-    }
-    "tmux" // fall back to PATH lookup
+/// Resolve the tmux binary path. The daemon runs under launchd / systemd
+/// with a minimal PATH, so we probe known install dirs via the shared
+/// platform-aware helper.
+fn tmux_bin() -> String {
+    crate::cmd::resolve_bin("tmux")
 }
 
 /// Apply theme to tmux. Idempotent: safe to call repeatedly.
