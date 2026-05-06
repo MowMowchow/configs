@@ -150,7 +150,26 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────
+# Phase 4: Oh My Zsh
+# ─────────────────────────────────────────────────────────────────
+info "Phase 4: Oh My Zsh"
+
+if [[ -d "$HOME/.oh-my-zsh" ]]; then
+  ok "Oh My Zsh already installed"
+else
+  sudo apt-get install -y -qq zsh
+  RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+  ok "Oh My Zsh installed"
+fi
+
+# We don't run chsh automatically — that changes the login shell, which
+# is a user-affecting decision. Print a hint instead.
+if [[ "$(getent passwd "$USER" | cut -d: -f7)" != "$(command -v zsh)" ]]; then
+  warn "default shell is not zsh — run: chsh -s \"\$(command -v zsh)\" then log out and back in"
+fi
+
+# ─────────────────────────────────────────────────────────────────
 # Done
 # ─────────────────────────────────────────────────────────────────
 echo ""
-info "install-linux.sh — phases pending: 4/5/6/7/8/9/10"
+info "install-linux.sh — phases pending: 5/6/7/8/9/10"
