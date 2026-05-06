@@ -239,7 +239,48 @@ if need pipx; then
 fi
 
 # ─────────────────────────────────────────────────────────────────
+# Phase 8: theme-manager (build + install + initial config)
+# ─────────────────────────────────────────────────────────────────
+info "Phase 8: theme-manager"
+
+THEME_MGR="$DOTFILES/theme-manager"
+
+if [[ -f "$LOCAL_BIN/theme-manager" ]]; then
+  ok "theme-manager binary exists"
+else
+  if [[ -f "$THEME_MGR/Cargo.toml" ]]; then
+    ( cd "$THEME_MGR" && cargo build --release )
+    cp "$THEME_MGR/target/release/theme-manager" "$LOCAL_BIN/"
+    ok "theme-manager built and installed"
+  else
+    fail "theme-manager source not found at $THEME_MGR"
+  fi
+fi
+
+# Default config — only if missing.
+if [[ ! -f "$THEME_MGR/config.toml" ]]; then
+  cat > "$THEME_MGR/config.toml" << 'TOML'
+[theme]
+family = "gruvbox-material"
+variant = "medium"
+
+[paths]
+kitty_config = "~/.config/kitty"
+tmux_config = "~/.config/tmux"
+nvim_socket_pattern = "/tmp/nvim-theme-*.sock"
+catppuccin_tmux_plugin = "~/.config/tmux/plugins/tmux/catppuccin.tmux"
+TOML
+  ok "theme-manager config.toml created"
+else
+  ok "theme-manager config.toml exists"
+fi
+
+# Apply once so kitty *.auto.conf files are written. Failure is non-fatal
+# — kitty / tmux may not be running yet on a fresh box.
+"$LOCAL_BIN/theme-manager" apply >/dev/null 2>&1 && ok "theme applied" || warn "theme apply failed (kitty/tmux may not be running)"
+
+# ─────────────────────────────────────────────────────────────────
 # Done
 # ─────────────────────────────────────────────────────────────────
 echo ""
-info "install-linux.sh — phases pending: 8/9/10"
+info "install-linux.sh — phases pending: 9/10"
