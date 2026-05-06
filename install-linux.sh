@@ -59,7 +59,32 @@ sudo apt-get update -qq
 ok "apt updated"
 
 # ─────────────────────────────────────────────────────────────────
+# Phase 1.5: Fonts (apt fallback + Nerd Font tarball)
+# ─────────────────────────────────────────────────────────────────
+info "Phase 1.5: Fonts"
+
+sudo apt-get install -y -qq fonts-jetbrains-mono
+ok "fonts-jetbrains-mono (apt baseline)"
+
+NF_DIR="$HOME/.local/share/fonts/JetBrainsMono-NerdFont"
+if [[ -d "$NF_DIR" ]] && find "$NF_DIR" -name '*.ttf' -print -quit | grep -q .; then
+  ok "JetBrainsMono Nerd Font already installed"
+else
+  mkdir -p "$NF_DIR"
+  TMP="$(mktemp -d)"
+  if curl -fsSL -o "$TMP/JetBrainsMono.tar.xz" \
+       https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz; then
+    tar -xf "$TMP/JetBrainsMono.tar.xz" -C "$NF_DIR"
+    fc-cache -f "$NF_DIR" >/dev/null
+    ok "JetBrainsMono Nerd Font installed (tarball)"
+  else
+    warn "Nerd Font download failed — apt fallback in use; icons may render as boxes"
+  fi
+  rm -rf "$TMP"
+fi
+
+# ─────────────────────────────────────────────────────────────────
 # Done
 # ─────────────────────────────────────────────────────────────────
 echo ""
-info "install-linux.sh — phases pending: 1.5/2/3/4/5/6/7/8/9/10"
+info "install-linux.sh — phases pending: 2/3/4/5/6/7/8/9/10"
