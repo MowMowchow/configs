@@ -89,7 +89,7 @@ fi
 info "Phase 2: apt packages"
 
 APT_PKGS=(
-  tmux neovim eza fastfetch bat
+  tmux neovim eza fastfetch chafa bat
   zsh-syntax-highlighting zoxide fzf ripgrep fd-find
   python3 python3-pip python3-venv pipx
   luarocks clang-format golang-go kitty
