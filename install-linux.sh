@@ -279,7 +279,41 @@ fi
 "$LOCAL_BIN/theme-manager" apply >/dev/null 2>&1 && ok "theme applied" || warn "theme apply failed (kitty/tmux may not be running)"
 
 # ─────────────────────────────────────────────────────────────────
+# Phase 9: systemd user unit (theme-manager daemon)
+# ─────────────────────────────────────────────────────────────────
+info "Phase 9: systemd user unit"
+
+SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
+UNIT_FILE="$SYSTEMD_USER_DIR/theme-manager.service"
+
+mkdir -p "$SYSTEMD_USER_DIR"
+
+cat > "$UNIT_FILE" << 'UNIT'
+[Unit]
+Description=theme-manager appearance daemon
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=%h/.local/bin/theme-manager watch
+Restart=on-failure
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
+UNIT
+ok "theme-manager.service written"
+
+if systemctl --user daemon-reload 2>/dev/null; then
+  systemctl --user enable --now theme-manager.service 2>/dev/null && ok "daemon enabled + started" || warn "could not enable daemon (no systemd --user session?)"
+else
+  warn "systemctl --user not available — daemon will not auto-start"
+fi
+
+# ─────────────────────────────────────────────────────────────────
 # Done
 # ─────────────────────────────────────────────────────────────────
 echo ""
-info "install-linux.sh — phases pending: 9/10"
+info "install-linux.sh — phases pending: 10"
