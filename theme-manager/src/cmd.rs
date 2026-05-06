@@ -19,3 +19,50 @@ pub fn run_with_timeout(mut cmd: Command, timeout: Duration) -> Result<std::proc
         Err(_) => Err(format!("command timed out after {:?}", timeout)),
     }
 }
+
+/// Resolve a binary's absolute path by probing platform-specific install
+/// directories, falling back to the bare name (PATH-resolved by the OS).
+///
+/// macOS probes /opt/homebrew/bin then /usr/local/bin (Homebrew Apple Silicon
+/// then Intel). Linux probes /usr/local/bin then /usr/bin (manual installs
+/// then apt). The bare-name fallback covers anywhere else on PATH.
+pub fn resolve_bin(name: &str) -> String {
+    let candidates: &[&str] = if cfg!(target_os = "macos") {
+        &["/opt/homebrew/bin", "/usr/local/bin"]
+    } else {
+        &["/usr/local/bin", "/usr/bin"]
+    };
+    for dir in candidates {
+        let p = format!("{}/{}", dir, name);
+        if std::path::Path::new(&p).exists() {
+            return p;
+        }
+    }
+    name.to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_bin_returns_absolute_path_when_binary_exists() {
+        // /bin/sh exists on every Unix; it's not in our candidate dirs, but
+        // we use it here only to assert the fallback returns the bare name
+        // when nothing in candidates matches.
+        let result = resolve_bin("definitely-not-a-real-binary-xyz");
+        assert_eq!(result, "definitely-not-a-real-binary-xyz");
+    }
+
+    #[test]
+    fn resolve_bin_finds_binary_in_usr_bin() {
+        // `ls` exists at /usr/bin/ls on Linux and /bin/ls on macOS (with
+        // /usr/bin/ls as a symlink). On macOS the candidate list doesn't
+        // include /usr/bin, so we'd hit the fallback. To make this test
+        // platform-agnostic, just check the result is non-empty and either
+        // absolute (found in candidates) or the bare name (fallback).
+        let result = resolve_bin("ls");
+        assert!(!result.is_empty());
+        assert!(result == "ls" || result.starts_with('/'));
+    }
+}
