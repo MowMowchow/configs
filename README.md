@@ -1,6 +1,6 @@
 # dotfiles
 
-macOS dev environment — keyboard-driven, consistently themed, one-command setup.
+macOS dev environment — keyboard-driven, consistently themed, one-command setup. Linux (Ubuntu 26.04 LTS) is supported on a best-effort basis.
 
 ## Quick Start
 
@@ -9,7 +9,17 @@ git clone git@github.com:MowMowchow/configs.git ~/.config
 cd ~/.config && ./install.sh
 ```
 
-The installer is idempotent — safe to re-run on an existing setup.
+`install.sh` detects the host OS and dispatches to `install-macos.sh` or `install-linux.sh`. Both are idempotent — safe to re-run on an existing setup.
+
+### Linux (Ubuntu 26.04 LTS, untested)
+
+The Linux path is best-effort and may need fixing on first run. Notable differences from macOS:
+
+- Auto dark/light switching depends on `gsettings` (works on GNOME — Ubuntu's default; KDE/sway/etc. fall back to 5-second polling).
+- `aerospace`, `iterm2`, and `spicetify-cli` are skipped.
+- Fonts: apt's `fonts-jetbrains-mono` is installed as a baseline, plus the JetBrainsMono Nerd Font tarball from `github.com/ryanoasis/nerd-fonts` for icon glyphs.
+- The theme-manager daemon runs as a `systemd --user` unit instead of a LaunchAgent. Logs: `journalctl --user -u theme-manager`.
+- You may need to set zsh as your login shell after install: `chsh -s "$(command -v zsh)"`.
 
 ## What's Inside
 
