@@ -190,7 +190,32 @@ if [[ -x /usr/bin/fdfind ]]; then
 fi
 
 # ─────────────────────────────────────────────────────────────────
+# Phase 6: Tmux plugins (TPM + Catppuccin)
+# ─────────────────────────────────────────────────────────────────
+info "Phase 6: Tmux plugins"
+
+TPM_DIR="$DOTFILES/tmux/plugins/tpm"
+if [[ -d "$TPM_DIR" ]]; then
+  ok "TPM already installed"
+else
+  git clone https://github.com/tmux-plugins/tpm "$TPM_DIR"
+  ok "TPM installed"
+fi
+
+CATPPUCCIN_DIR="$DOTFILES/tmux/plugins/tmux"
+if [[ -d "$CATPPUCCIN_DIR" ]]; then
+  ok "Catppuccin tmux already installed"
+else
+  git clone https://github.com/catppuccin/tmux "$CATPPUCCIN_DIR"
+  ok "Catppuccin tmux installed"
+fi
+
+if [[ -x "$TPM_DIR/bin/install_plugins" ]]; then
+  "$TPM_DIR/bin/install_plugins" >/dev/null 2>&1 && ok "TPM plugins installed" || warn "TPM plugin install had issues"
+fi
+
+# ─────────────────────────────────────────────────────────────────
 # Done
 # ─────────────────────────────────────────────────────────────────
 echo ""
-info "install-linux.sh — phases pending: 6/7/8/9/10"
+info "install-linux.sh — phases pending: 7/8/9/10"
