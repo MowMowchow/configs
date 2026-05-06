@@ -215,7 +215,31 @@ if [[ -x "$TPM_DIR/bin/install_plugins" ]]; then
 fi
 
 # ─────────────────────────────────────────────────────────────────
+# Phase 7: Neovim formatters (lazy.nvim auto-bootstraps on first launch)
+# ─────────────────────────────────────────────────────────────────
+info "Phase 7: Neovim"
+
+ok "lazy.nvim will auto-bootstrap on first nvim launch"
+ok "Mason LSPs will auto-install on first nvim launch"
+
+if need npm; then
+  if npm list -g prettier >/dev/null 2>&1; then
+    ok "prettier (npm)"
+  else
+    sudo npm install -g prettier
+    ok "prettier (npm)"
+  fi
+fi
+
+# Ubuntu 26.04 enforces PEP 668 — pip3 install --user is blocked. Use pipx.
+if need pipx; then
+  pipx install black >/dev/null 2>&1 || true
+  pipx install isort >/dev/null 2>&1 || true
+  ok "black + isort (pipx)"
+fi
+
+# ─────────────────────────────────────────────────────────────────
 # Done
 # ─────────────────────────────────────────────────────────────────
 echo ""
-info "install-linux.sh — phases pending: 7/8/9/10"
+info "install-linux.sh — phases pending: 8/9/10"
