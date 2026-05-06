@@ -100,6 +100,38 @@ for p in "${APT_PKGS[@]}"; do
   ok "$p"
 done
 
+# Neovim version check — lazy.nvim requires >= 0.9.5. If apt's nvim is older,
+# fall back to the AppImage from github.com/neovim/neovim releases.
+NVIM_VERSION="$(nvim --version 2>/dev/null | head -1 | awk '{print $2}' | sed 's/^v//')"
+NVIM_MAJOR="${NVIM_VERSION%%.*}"
+NVIM_REST="${NVIM_VERSION#*.}"
+NVIM_MINOR="${NVIM_REST%%.*}"
+nvim_too_old() {
+  [[ -z "$NVIM_MAJOR" ]] && return 0
+  [[ "$NVIM_MAJOR" -gt 0 ]] && return 1
+  [[ "$NVIM_MINOR" -ge 10 ]] && return 1
+  if [[ "$NVIM_MINOR" -lt 9 ]]; then
+    return 0
+  fi
+  # 0.9.x — check patch
+  NVIM_PATCH="${NVIM_REST#*.}"
+  NVIM_PATCH="${NVIM_PATCH%%-*}"
+  [[ -z "$NVIM_PATCH" ]] && return 0
+  [[ "$NVIM_PATCH" -lt 5 ]]
+}
+if nvim_too_old; then
+  warn "apt nvim too old (got ${NVIM_VERSION:-unknown}, need >= 0.9.5) — installing AppImage"
+  if curl -fsSL -o "$LOCAL_BIN/nvim" \
+       https://github.com/neovim/neovim/releases/latest/download/nvim.appimage; then
+    chmod +x "$LOCAL_BIN/nvim"
+    ok "nvim AppImage -> $LOCAL_BIN/nvim (overrides apt nvim if $LOCAL_BIN is in PATH first)"
+  else
+    warn "nvim AppImage download failed — apt version remains; lazy.nvim may not bootstrap"
+  fi
+else
+  ok "nvim $NVIM_VERSION (apt) is recent enough for lazy.nvim"
+fi
+
 # NodeSource: apt's nodejs lags; install LTS via the official deb script
 # if no recent node is already on PATH.
 if need node && [[ "$(node --version 2>/dev/null | sed 's/v//' | cut -d. -f1)" -ge 20 ]]; then
