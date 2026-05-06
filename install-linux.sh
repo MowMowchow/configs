@@ -169,7 +169,28 @@ if [[ "$(getent passwd "$USER" | cut -d: -f7)" != "$(command -v zsh)" ]]; then
 fi
 
 # ─────────────────────────────────────────────────────────────────
+# Phase 5: Symlinks + ~/.local/bin shims
+# ─────────────────────────────────────────────────────────────────
+info "Phase 5: Symlinks"
+
+mkdir -p "$LOCAL_BIN"
+
+link "$DOTFILES/zshrc"          "$HOME/.zshrc"
+link "$DOTFILES/tmux/tmux.conf" "$HOME/.tmux.conf"
+link "$DOTFILES/tmux"           "$HOME/.tmux"
+
+# Ubuntu installs `bat` as `batcat` and `fd` as `fdfind` to avoid name
+# collisions with older packages. The rest of the dotfiles assume the
+# standard names — symlinks bridge the gap with no per-OS branching.
+if [[ -x /usr/bin/batcat ]]; then
+  link "/usr/bin/batcat" "$LOCAL_BIN/bat"
+fi
+if [[ -x /usr/bin/fdfind ]]; then
+  link "/usr/bin/fdfind" "$LOCAL_BIN/fd"
+fi
+
+# ─────────────────────────────────────────────────────────────────
 # Done
 # ─────────────────────────────────────────────────────────────────
 echo ""
-info "install-linux.sh — phases pending: 5/6/7/8/9/10"
+info "install-linux.sh — phases pending: 6/7/8/9/10"
