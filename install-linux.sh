@@ -84,7 +84,44 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────
+# Phase 2: apt packages + supplemental installs
+# ─────────────────────────────────────────────────────────────────
+info "Phase 2: apt packages"
+
+APT_PKGS=(
+  tmux neovim eza neofetch bat
+  zsh-syntax-highlighting zoxide fzf ripgrep fd-find
+  python3 python3-pip python3-venv pipx
+  luarocks clang-format golang-go kitty
+)
+
+sudo apt-get install -y -qq "${APT_PKGS[@]}"
+for p in "${APT_PKGS[@]}"; do
+  ok "$p"
+done
+
+# NodeSource: apt's nodejs lags; install LTS via the official deb script
+# if no recent node is already on PATH.
+if need node && [[ "$(node --version 2>/dev/null | sed 's/v//' | cut -d. -f1)" -ge 20 ]]; then
+  ok "node $(node --version) already installed"
+else
+  info "  installing Node.js LTS via NodeSource"
+  curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+  sudo apt-get install -y -qq nodejs
+  ok "node $(node --version)"
+fi
+
+# spicetify-cli — print hint, do not auto-install (snap Spotify breaks it).
+if ! need spicetify; then
+  warn "spicetify-cli not installed (Linux Spotify is typically snap; spicetify needs a writable Spotify dir which snap blocks)"
+  warn "  see https://spicetify.app/docs/getting-started if you want it"
+fi
+
+# aerospace — macOS-only, no auto-install on Linux.
+warn "aerospace is macOS-only — see sway / i3 / hyprland for Linux tiling WMs"
+
+# ─────────────────────────────────────────────────────────────────
 # Done
 # ─────────────────────────────────────────────────────────────────
 echo ""
-info "install-linux.sh — phases pending: 2/3/4/5/6/7/8/9/10"
+info "install-linux.sh — phases pending: 3/4/5/6/7/8/9/10"
