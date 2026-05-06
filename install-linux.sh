@@ -121,7 +121,36 @@ fi
 warn "aerospace is macOS-only — see sway / i3 / hyprland for Linux tiling WMs"
 
 # ─────────────────────────────────────────────────────────────────
+# Phase 3: Rust toolchain (via rustup)
+# ─────────────────────────────────────────────────────────────────
+info "Phase 3: Rust toolchain"
+
+if need rustc; then
+  ok "Rust already installed ($(rustc --version))"
+else
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+  # shellcheck disable=SC1091
+  source "$HOME/.cargo/env"
+  ok "Rust installed"
+fi
+
+# stylua + sqlfluff — not in apt
+if need stylua; then
+  ok "stylua already installed"
+else
+  cargo install stylua --quiet
+  ok "stylua"
+fi
+
+if need sqlfluff; then
+  ok "sqlfluff already installed"
+else
+  pipx install sqlfluff
+  ok "sqlfluff"
+fi
+
+# ─────────────────────────────────────────────────────────────────
 # Done
 # ─────────────────────────────────────────────────────────────────
 echo ""
-info "install-linux.sh — phases pending: 3/4/5/6/7/8/9/10"
+info "install-linux.sh — phases pending: 4/5/6/7/8/9/10"
