@@ -313,7 +313,35 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────
+# Phase 10: Secrets reminder
+# ─────────────────────────────────────────────────────────────────
+info "Phase 10: Secrets"
+
+if [[ -f "$HOME/.secrets" ]]; then
+  ok "~/.secrets exists"
+else
+  warn "~/.secrets not found — create it with your API keys:"
+  echo "    cat > ~/.secrets << 'EOF'"
+  echo "    export OPENAI_API_KEY=\"...\""
+  echo "    EOF"
+  echo "    chmod 600 ~/.secrets"
+fi
+
+# ─────────────────────────────────────────────────────────────────
 # Done
 # ─────────────────────────────────────────────────────────────────
 echo ""
-info "install-linux.sh — phases pending: 10"
+info "Setup complete!"
+echo ""
+echo "  Linux notes (untested path — expect rough edges):"
+echo "    - Auto dark/light requires gsettings (works under GNOME)"
+echo "    - aerospace, iterm2, spicetify-cli are skipped"
+echo "    - If your shell is still bash: chsh -s \"\$(command -v zsh)\" + log out"
+echo ""
+echo "  Next steps:"
+echo "    1. Open a new terminal (or run: source ~/.zshrc)"
+echo "    2. Open nvim — plugins will auto-install on first launch"
+echo "    3. In tmux, press Ctrl+S then I to install TPM plugins"
+echo "    4. Create ~/.secrets with your API keys (if not done)"
+echo "    5. Run: theme-manager set gruvbox-material medium"
+echo ""
