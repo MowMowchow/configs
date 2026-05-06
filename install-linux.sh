@@ -233,9 +233,8 @@ fi
 
 # Ubuntu 26.04 enforces PEP 668 — pip3 install --user is blocked. Use pipx.
 if need pipx; then
-  pipx install black >/dev/null 2>&1 || true
-  pipx install isort >/dev/null 2>&1 || true
-  ok "black + isort (pipx)"
+  pipx install black >/dev/null 2>&1 && ok "black (pipx)" || warn "black install failed (may already be installed)"
+  pipx install isort >/dev/null 2>&1 && ok "isort (pipx)" || warn "isort install failed (may already be installed)"
 fi
 
 # ─────────────────────────────────────────────────────────────────
