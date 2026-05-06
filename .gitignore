@@ -12,6 +12,7 @@ kitty/current-theme.conf
 # Secrets
 delphi/secrets.toml
 github-copilot/
+gh/
 **/secrets*
 **/*.secret
 **/.env
@@ -30,3 +31,6 @@ tmux/plugins/
 yarn/
 raycast/
 binwalk/
+
+# Linux install artifacts (written by install-linux.sh phase 9)
+systemd/
