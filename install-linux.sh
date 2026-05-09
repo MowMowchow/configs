@@ -93,6 +93,7 @@ APT_PKGS=(
   zsh-syntax-highlighting zoxide fzf ripgrep fd-find
   python3 python3-pip python3-venv pipx
   luarocks clang-format golang-go kitty
+  unzip
 )
 # Note: neovim is installed via snap below (apt ships 0.9.5; we need >= 0.11).
 # kitty is in apt as a baseline (and for desktop entries / mime associations);
@@ -405,9 +406,108 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────
-# Phase 10: Secrets reminder
+# Phase 10: macOS-style Super shortcuts (xremap + GNOME tweaks)
+# See docs/keybinds-linux.md for the full design + rollback.
 # ─────────────────────────────────────────────────────────────────
-info "Phase 10: Secrets"
+info "Phase 10: macOS-style Super shortcuts"
+
+# 1. xremap binary — upstream prebuilt zip; no compile needed.
+XREMAP_VERSION="${XREMAP_VERSION:-0.15.5}"
+XREMAP_DIR="$HOME/.local/xremap.app"
+xremap_installed_version() {
+  [[ -x "$XREMAP_DIR/xremap" ]] || return 1
+  "$XREMAP_DIR/xremap" --version 2>/dev/null | awk '{print $2}'
+}
+if [[ "$(xremap_installed_version)" == "$XREMAP_VERSION" ]]; then
+  ok "xremap $XREMAP_VERSION (tarball)"
+else
+  info "  installing xremap $XREMAP_VERSION (X11 prebuilt)"
+  TMP_X="$(mktemp -d)"
+  ARCH="$(uname -m)"   # x86_64 or aarch64
+  XREMAP_URL="https://github.com/xremap/xremap/releases/download/v${XREMAP_VERSION}/xremap-linux-${ARCH}-x11.zip"
+  if curl -fsSL "$XREMAP_URL" -o "$TMP_X/xremap.zip" \
+       && mkdir -p "$XREMAP_DIR" \
+       && unzip -o "$TMP_X/xremap.zip" -d "$XREMAP_DIR" >/dev/null; then
+    chmod +x "$XREMAP_DIR/xremap"
+    ln -sf "$XREMAP_DIR/xremap" "$LOCAL_BIN/xremap"
+    ok "xremap $XREMAP_VERSION -> $LOCAL_BIN/xremap"
+  else
+    warn "xremap download/install failed — Super shortcuts won't work"
+  fi
+  rm -rf "$TMP_X"
+fi
+
+# 2. uinput permissions so xremap can run as your normal user (not root).
+if ! grep -q 'KERNEL=="uinput"' /etc/udev/rules.d/99-input.rules 2>/dev/null; then
+  info "  installing uinput udev rule + module-load entry"
+  echo 'KERNEL=="uinput", GROUP="input", TAG+="uaccess", MODE:="0660", OPTIONS+="static_node=uinput"' \
+    | sudo tee /etc/udev/rules.d/99-input.rules >/dev/null
+  echo uinput | sudo tee /etc/modules-load.d/uinput.conf >/dev/null
+  sudo modprobe uinput 2>/dev/null || true
+  sudo udevadm control --reload-rules 2>/dev/null || true
+  sudo udevadm trigger 2>/dev/null || true
+  ok "uinput rule installed (group=input)"
+else
+  ok "uinput udev rule already present"
+fi
+
+# 3. Add user to input group (effective on next login).
+if id -nG "$USER" | tr ' ' '\n' | grep -qx input; then
+  ok "$USER already in input group"
+else
+  sudo gpasswd -a "$USER" input >/dev/null
+  warn "added $USER to input group — LOG OUT AND BACK IN for xremap to start"
+fi
+
+# 4. GNOME-side shortcut rebinds (skipped on non-GNOME).
+if need gsettings && [[ "${XDG_CURRENT_DESKTOP:-}" == *GNOME* ]]; then
+  info "  rebinding GNOME shortcuts that conflict with macOS-style Super"
+  gsettings set org.gnome.mutter overlay-key '' 2>/dev/null || true
+  gsettings set org.gnome.desktop.wm.keybindings switch-input-source "[]" 2>/dev/null || true
+  gsettings set org.gnome.desktop.wm.keybindings switch-input-source-backward "[]" 2>/dev/null || true
+  gsettings set org.gnome.shell.keybindings toggle-overview "['<Super>space']" 2>/dev/null || true
+  gsettings set org.gnome.shell.keybindings toggle-message-tray "[]" 2>/dev/null || true
+  gsettings set org.gnome.shell.keybindings toggle-application-view "[]" 2>/dev/null || true
+  gsettings set org.gnome.settings-daemon.plugins.media-keys screensaver "['<Control><Alt>l']" 2>/dev/null || true
+  ok "GNOME shortcuts rebound (lock screen moved to Ctrl+Alt+L)"
+else
+  warn "non-GNOME or gsettings missing — skipped GNOME shortcut rebinds"
+fi
+
+# 5. systemd user unit pointing at the repo's xremap/config.yml.
+XREMAP_UNIT="$SYSTEMD_USER_DIR/xremap.service"
+cat > "$XREMAP_UNIT" << 'UNIT'
+[Unit]
+Description=xremap macOS-style keyboard remapping
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=%h/.local/bin/xremap --watch %h/.config/xremap/config.yml
+Restart=on-failure
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
+UNIT
+ok "xremap.service written"
+
+if systemctl --user daemon-reload 2>/dev/null; then
+  if systemctl --user enable --now xremap.service 2>/dev/null; then
+    ok "xremap daemon enabled + started"
+  else
+    warn "xremap daemon couldn't start — likely needs logout/login first"
+  fi
+else
+  warn "systemctl --user not available — xremap daemon won't auto-start"
+fi
+
+# ─────────────────────────────────────────────────────────────────
+# Phase 11: Secrets reminder
+# ─────────────────────────────────────────────────────────────────
+info "Phase 11: Secrets"
 
 if [[ -f "$HOME/.secrets" ]]; then
   ok "~/.secrets exists"
@@ -429,11 +529,15 @@ echo "  Linux notes (untested path — expect rough edges):"
 echo "    - Auto dark/light requires gsettings (works under GNOME)"
 echo "    - aerospace, iterm2, spicetify-cli are skipped"
 echo "    - If your shell is still bash: chsh -s \"\$(command -v zsh)\" + log out"
+echo "    - macOS-style Super shortcuts need a logout/login if you weren't"
+echo "      already in the input group — see docs/keybinds-linux.md"
 echo ""
 echo "  Next steps:"
-echo "    1. Open a new terminal (or run: source ~/.zshrc)"
-echo "    2. Open nvim — plugins will auto-install on first launch"
-echo "    3. In tmux, press Ctrl+S then I to install TPM plugins"
-echo "    4. Create ~/.secrets with your API keys (if not done)"
-echo "    5. Run: theme-manager set gruvbox-material medium"
+echo "    1. LOG OUT and back in (so input-group membership takes effect)"
+echo "    2. Open a new terminal (or run: source ~/.zshrc)"
+echo "    3. Open nvim — plugins will auto-install on first launch"
+echo "    4. In tmux, press Ctrl+S then I to install TPM plugins"
+echo "    5. Create ~/.secrets with your API keys (if not done)"
+echo "    6. Run: theme-manager set gruvbox-material medium"
+echo "    7. Verify Super shortcuts: systemctl --user is-active xremap.service"
 echo ""

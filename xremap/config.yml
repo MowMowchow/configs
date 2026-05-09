@@ -1,0 +1,79 @@
+# macOS-style Super-key shortcuts on Linux GNOME (X11).
+# Driven by xremap (https://github.com/xremap/xremap), which intercepts
+# keys at the evdev layer and emits replacement events via uinput.
+#
+# Design:
+# - Generic apps: Super behaves like macOS Command (Super+C → Ctrl+C, etc.).
+# - Terminal apps (regex match on WM_CLASS): Super+C/V/T/W/N/F/A become
+#   Ctrl+Shift+C/V/T/W/N/F/A so terminal-native copy/paste/new-tab work
+#   AND Ctrl+C still interrupts the foreground process.
+# - Dangerous terminal mappings (Super+S/Z/X) are dropped to []  — the
+#   xremap idiom for "swallow the key" — to avoid Ctrl+S freezing output,
+#   Ctrl+Z suspending a job, or Ctrl+X clobbering a buffer.
+#
+# See docs/keybinds-linux.md for the full runbook (install, GNOME tweaks,
+# rollback, debugging, how to extend).
+
+keymap:
+  # Terminal-specific overrides MUST come first. xremap evaluates keymap
+  # blocks in order and uses the first match, so app-scoped blocks need to
+  # sit above the unscoped fallback.
+  - name: Terminal — macOS-style shortcuts
+    application:
+      only:
+        - /kitty/
+        - /Alacritty/
+        - /gnome-terminal/
+        - /org\.gnome\.Terminal/
+        - /org\.gnome\.Console/
+        - /kgx/
+        - /wezterm/
+        - /WezTerm/
+        - /com\.mitchellh\.ghostty/
+        - /foot/
+    remap:
+      # Terminal-native copy/paste/new-tab/close-tab/find/select-all.
+      Super-c: C-Shift-c
+      Super-v: C-Shift-v
+      Super-t: C-Shift-t
+      Super-w: C-Shift-w
+      Super-n: C-Shift-n
+      Super-f: C-Shift-f
+      Super-a: C-Shift-a
+
+      # Terminal-native: clear, reverse-history-search, close window.
+      Super-l: C-l
+      Super-r: C-r
+      Super-q: Alt-F4
+
+      # Drop these — typing them as Ctrl-X would break the shell:
+      #   Ctrl-S freezes terminal output (XOFF)
+      #   Ctrl-Z suspends the foreground job
+      #   Ctrl-X clobbers Readline's prefix
+      Super-s: []
+      Super-z: []
+      Super-x: []
+
+  # Fallback for everything else (browsers, editors, file managers, …).
+  - name: Global — macOS-style shortcuts
+    remap:
+      Super-c: C-c
+      Super-v: C-v
+      Super-x: C-x
+      Super-a: C-a
+
+      Super-z: C-z
+      Super-Shift-z: C-Shift-z
+
+      Super-s: C-s
+      Super-o: C-o
+      Super-p: C-p
+      Super-f: C-f
+
+      Super-t: C-t
+      Super-w: C-w
+      Super-r: C-r
+      Super-l: C-l
+      Super-n: C-n
+
+      Super-q: Alt-F4
