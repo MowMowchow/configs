@@ -172,6 +172,35 @@ fi
 # aerospace — macOS-only, no auto-install on Linux.
 warn "aerospace is macOS-only — see sway / i3 / hyprland for Linux tiling WMs"
 
+# Sapling (Meta's source control client). Upstream stopped shipping .debs
+# in May 2025; the canonical install on Linux is the upstream tarball
+# (https://sapling-scm.com/docs/introduction/installation/). We extract to
+# ~/.local/share/sapling (upstream's recommended location) and symlink
+# `sl` into ~/.local/bin so it lands on PATH without modifying zshrc.
+SAPLING_VERSION="${SAPLING_VERSION:-0.2.20260317-201835+0234c21f}"
+SAPLING_DIR="$HOME/.local/share/sapling"
+sapling_installed_version() {
+  [[ -x "$SAPLING_DIR/sl" ]] || return 1
+  "$SAPLING_DIR/sl" --version 2>/dev/null | head -1 | awk '{print $2}'
+}
+if [[ "$(sapling_installed_version)" == "$SAPLING_VERSION" ]]; then
+  ok "sapling $SAPLING_VERSION (tarball)"
+else
+  info "  installing sapling $SAPLING_VERSION (no apt/snap path on Linux)"
+  ARCH="$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/')"
+  # The version string contains a literal '+'; URL-encode it as %2B in the
+  # path segment but leave it as-is in the filename (matches upstream URLs).
+  SAPLING_TAG_ENC="${SAPLING_VERSION//+/%2B}"
+  SAPLING_URL="https://github.com/facebook/sapling/releases/download/${SAPLING_TAG_ENC}/sapling-${SAPLING_VERSION}-linux-${ARCH}.tar.xz"
+  mkdir -p "$SAPLING_DIR"
+  if curl -fsSL "$SAPLING_URL" | tar -xJf - -C "$SAPLING_DIR"; then
+    ln -sf "$SAPLING_DIR/sl" "$LOCAL_BIN/sl"
+    ok "sapling $SAPLING_VERSION -> $LOCAL_BIN/sl"
+  else
+    warn "sapling tarball download failed — sl unavailable"
+  fi
+fi
+
 # ─────────────────────────────────────────────────────────────────
 # Phase 3: Rust toolchain (via rustup)
 # ─────────────────────────────────────────────────────────────────
