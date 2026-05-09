@@ -89,47 +89,67 @@ fi
 info "Phase 2: apt packages"
 
 APT_PKGS=(
-  tmux neovim eza fastfetch chafa bat
+  tmux eza fastfetch chafa bat
   zsh-syntax-highlighting zoxide fzf ripgrep fd-find
   python3 python3-pip python3-venv pipx
   luarocks clang-format golang-go kitty
 )
+# Note: neovim is installed via snap below (apt ships 0.9.5; we need >= 0.11).
+# kitty is in apt as a baseline (and for desktop entries / mime associations);
+# the upstream tarball below overrides /usr/bin/kitty via $LOCAL_BIN precedence
+# because apt's 0.32.2 lacks the native dark/light auto-switching from 0.36+.
 
 sudo apt-get install -y -qq "${APT_PKGS[@]}"
 for p in "${APT_PKGS[@]}"; do
   ok "$p"
 done
 
-# Neovim version check — lazy.nvim requires >= 0.9.5. If apt's nvim is older,
-# fall back to the AppImage from github.com/neovim/neovim releases.
-NVIM_VERSION="$(nvim --version 2>/dev/null | head -1 | awk '{print $2}' | sed 's/^v//')"
-NVIM_MAJOR="${NVIM_VERSION%%.*}"
-NVIM_REST="${NVIM_VERSION#*.}"
-NVIM_MINOR="${NVIM_REST%%.*}"
-nvim_too_old() {
-  [[ -z "$NVIM_MAJOR" ]] && return 0
-  [[ "$NVIM_MAJOR" -gt 0 ]] && return 1
-  [[ "$NVIM_MINOR" -ge 10 ]] && return 1
-  if [[ "$NVIM_MINOR" -lt 9 ]]; then
-    return 0
-  fi
-  # 0.9.x — check patch
-  NVIM_PATCH="${NVIM_REST#*.}"
-  NVIM_PATCH="${NVIM_PATCH%%-*}"
-  [[ -z "$NVIM_PATCH" ]] && return 0
-  [[ "$NVIM_PATCH" -lt 5 ]]
-}
-if nvim_too_old; then
-  warn "apt nvim too old (got ${NVIM_VERSION:-unknown}, need >= 0.9.5) — installing AppImage"
-  if curl -fsSL -o "$LOCAL_BIN/nvim" \
-       https://github.com/neovim/neovim/releases/latest/download/nvim.appimage; then
-    chmod +x "$LOCAL_BIN/nvim"
-    ok "nvim AppImage -> $LOCAL_BIN/nvim (overrides apt nvim if $LOCAL_BIN is in PATH first)"
-  else
-    warn "nvim AppImage download failed — apt version remains; lazy.nvim may not bootstrap"
-  fi
+# Neovim — our plugin set requires >= 0.11:
+#   - blink.cmp hard-requires 0.10
+#   - lsp.lua uses vim.lsp.config / vim.lsp.enable (added in 0.11)
+#   - mason-lspconfig automatic_enable assumes vim.lsp.enable
+# Ubuntu's apt ships 0.9.5, so we use the snap (tracks latest stable, currently
+# v0.12.2). If apt's neovim is already installed, remove it first so $PATH
+# resolves to /snap/bin/nvim and not /usr/bin/nvim.
+if snap list nvim >/dev/null 2>&1; then
+  ok "nvim $(snap list nvim | awk 'NR==2 {print $2}') (snap)"
 else
-  ok "nvim $NVIM_VERSION (apt) is recent enough for lazy.nvim"
+  if dpkg -l neovim 2>/dev/null | grep -q '^ii'; then
+    sudo apt-get remove -y -qq neovim
+  fi
+  if sudo snap install nvim --classic; then
+    ok "nvim $(snap list nvim | awk 'NR==2 {print $2}') (snap)"
+  else
+    warn "snap install nvim failed — your plugin set requires >= 0.11; plugins will not bootstrap"
+  fi
+fi
+
+# Kitty — apt ships 0.32.2; we need >= 0.36 for the native dark/light
+# `*.auto.conf` auto-switching the theme-manager design depends on. There's
+# no good apt PPA or snap for kitty, so we install the upstream tarball into
+# ~/.local/kitty.app and shim via ~/.local/bin. Bump KITTY_VERSION to upgrade.
+KITTY_VERSION="${KITTY_VERSION:-0.46.2}"
+KITTY_DIR="$HOME/.local/kitty.app"
+kitty_installed_version() {
+  [[ -x "$KITTY_DIR/bin/kitty" ]] || return 1
+  "$KITTY_DIR/bin/kitty" --version 2>/dev/null | awk '{print $2}'
+}
+if [[ "$(kitty_installed_version)" == "$KITTY_VERSION" ]]; then
+  ok "kitty $KITTY_VERSION (tarball)"
+else
+  info "  installing kitty $KITTY_VERSION (apt's 0.32.2 lacks native auto-switching)"
+  TMP_KITTY="$(mktemp -d)"
+  if curl -fsSL "https://github.com/kovidgoyal/kitty/releases/download/v${KITTY_VERSION}/kitty-${KITTY_VERSION}-x86_64.txz" \
+       -o "$TMP_KITTY/kitty.txz" \
+     && mkdir -p "$KITTY_DIR" \
+     && tar -xJf "$TMP_KITTY/kitty.txz" -C "$KITTY_DIR"; then
+    ln -sf "$KITTY_DIR/bin/kitty"  "$LOCAL_BIN/kitty"
+    ln -sf "$KITTY_DIR/bin/kitten" "$LOCAL_BIN/kitten"
+    ok "kitty $KITTY_VERSION -> $LOCAL_BIN/kitty (overrides apt kitty via PATH precedence)"
+  else
+    warn "kitty $KITTY_VERSION tarball install failed — apt 0.32.2 remains; native auto-switching unavailable"
+  fi
+  rm -rf "$TMP_KITTY"
 fi
 
 # NodeSource: apt's nodejs lags; install LTS via the official deb script
