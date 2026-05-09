@@ -31,13 +31,17 @@ keymap:
         - /WezTerm/
         - /com\.mitchellh\.ghostty/
         - /foot/
+    # Modifier set must match exactly. Without this, xremap's default of
+    # exact_match=false would let `Super-n` (mapped to Ctrl+Shift+N → new
+    # kitty window) also fire when the user presses Super+Shift+N — which
+    # would shadow the more specific `Super-Shift-n` rule below.
+    exact_match: true
     remap:
       # Terminal-native copy/paste/new-tab/close-tab/find/select-all.
       Super-c: C-Shift-c
       Super-v: C-Shift-v
       Super-t: C-Shift-t
       Super-w: C-Shift-w
-      Super-n: C-Shift-n
       Super-f: C-Shift-f
       Super-a: C-Shift-a
 
@@ -46,13 +50,27 @@ keymap:
       Super-r: C-r
       Super-q: Alt-F4
 
-      # tmux window management. The list-form value sends a sequence of
+      # tmux window management. List-form values send a sequence of
       # chords: tmux prefix (Ctrl+S, set in tmux.conf) followed by the
       # tmux command-key. xremap operates at evdev scancodes, not
       # characters, so '&' (kill-window) is sent as Shift-7 — the
       # physical key combo that produces '&' on US layout.
-      Super-Shift-n: [C-s, c]        # new tmux window  (prefix + c)
-      Super-Shift-w: [C-s, Shift-7]  # kill tmux window (prefix + &)
+      Super-n: [C-s, n]              # next tmux window     (prefix + n)
+      Super-p: [C-s, p]              # previous tmux window (prefix + p)
+      Super-Shift-n: [C-s, c]        # new tmux window      (prefix + c)
+      Super-Shift-w: [C-s, Shift-7]  # kill tmux window     (prefix + &)
+
+      # tmux switch-to-window N (Super+1..9). Mirrors the macOS
+      # Cmd+1..9 bindings in jhou-macos.conf.
+      Super-1: [C-s, '1']
+      Super-2: [C-s, '2']
+      Super-3: [C-s, '3']
+      Super-4: [C-s, '4']
+      Super-5: [C-s, '5']
+      Super-6: [C-s, '6']
+      Super-7: [C-s, '7']
+      Super-8: [C-s, '8']
+      Super-9: [C-s, '9']
 
       # Drop these — typing them as Ctrl-X would break the shell:
       #   Ctrl-S freezes terminal output (XOFF)
@@ -64,6 +82,7 @@ keymap:
 
   # Fallback for everything else (browsers, editors, file managers, …).
   - name: Global — macOS-style shortcuts
+    exact_match: true
     remap:
       Super-c: C-c
       Super-v: C-v
@@ -85,3 +104,16 @@ keymap:
       Super-n: C-n
 
       Super-q: Alt-F4
+
+      # Drop Super+1..9 globally so GNOME doesn't launch dock apps
+      # when you fat-finger them outside a terminal. (In the terminal
+      # layer above, these are tmux switch-to-window N.)
+      Super-1: []
+      Super-2: []
+      Super-3: []
+      Super-4: []
+      Super-5: []
+      Super-6: []
+      Super-7: []
+      Super-8: []
+      Super-9: []
