@@ -166,3 +166,18 @@ pub fn reload() -> Result<(), String> {
     let _ = run_with_timeout(cmd, KITTY_TIMEOUT);
     Ok(())
 }
+
+/// Ensure both *.auto.conf files exist on disk, then signal reload.
+///
+/// Both legs are needed for kitty to pick up a theme: write_auto_confs alone
+/// leaves a running kitty stuck on its old colors; reload alone is a no-op
+/// when the auto.conf files don't exist (the apply-without-set bug that
+/// silently produced an unthemed kitty on a fresh install).
+pub fn apply(
+    family: ThemeFamily,
+    variant: &str,
+    paths: &PathsConfig,
+) -> Result<(), String> {
+    write_auto_confs(family, variant, paths)?;
+    reload()
+}

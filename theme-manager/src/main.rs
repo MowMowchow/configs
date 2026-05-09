@@ -52,7 +52,10 @@ fn apply_appearance(config: &Config, app: appearance::Appearance) {
     // Run each adapter independently — one failure must not block others.
     // This follows the bulkhead pattern: isolate failure domains.
     let results: [(&str, Result<(), String>); 3] = [
-        ("kitty", adapters::kitty::reload()),
+        (
+            "kitty",
+            adapters::kitty::apply(family, variant, &config.paths),
+        ),
         (
             "tmux",
             adapters::tmux::apply(family, variant, app, &config.paths),
@@ -119,12 +122,8 @@ fn main() {
                 std::process::exit(1);
             }
 
-            // Write kitty auto.conf files for both appearances
-            if let Err(e) = adapters::kitty::write_auto_confs(f, &v, &config.paths) {
-                eprintln!("[theme-manager] kitty write error: {}", e);
-            }
-
-            // Apply to current system appearance
+            // apply_appearance now handles the kitty auto.conf write itself,
+            // so Set just needs to apply for the current system appearance.
             let app = appearance::get_current();
             apply_appearance(&config, app);
 
