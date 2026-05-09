@@ -194,6 +194,17 @@ else
   ok "stylua"
 fi
 
+# tree-sitter-cli >= 0.26.1 is required by nvim-treesitter v1.0 (main branch).
+# apt's 0.20.8 is too old. We disable default features to skip the `wasm`
+# feature, which pulls in rquickjs-sys — that needs libclang's stdbool.h
+# search path and fails on a vanilla Ubuntu 24.04 box.
+if need tree-sitter && [[ "$(tree-sitter --version 2>/dev/null | awk '{print $2}' | cut -d. -f2)" -ge 26 ]]; then
+  ok "tree-sitter $(tree-sitter --version | awk '{print $2}') already installed"
+else
+  cargo install tree-sitter-cli --no-default-features --quiet
+  ok "tree-sitter-cli (cargo, no wasm feature)"
+fi
+
 if need sqlfluff; then
   ok "sqlfluff already installed"
 else
