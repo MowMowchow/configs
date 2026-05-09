@@ -18,6 +18,11 @@ return {
 				"snyk_ls",
 				-- "gopls",
 			},
+			-- Don't auto-attach every Mason-installed server. Only the ones
+			-- explicitly listed in vim.lsp.enable() below run. Without this,
+			-- snyk_ls auto-attaches to every buffer and floods :messages
+			-- with auth-failure errors that overlay floats from lspsaga etc.
+			automatic_enable = false,
 		})
 
 		local capabilities = require('blink.cmp').get_lsp_capabilities()
