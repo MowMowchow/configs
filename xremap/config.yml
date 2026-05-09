@@ -46,6 +46,14 @@ keymap:
       Super-r: C-r
       Super-q: Alt-F4
 
+      # tmux window management. The list-form value sends a sequence of
+      # chords: tmux prefix (Ctrl+S, set in tmux.conf) followed by the
+      # tmux command-key. xremap operates at evdev scancodes, not
+      # characters, so '&' (kill-window) is sent as Shift-7 — the
+      # physical key combo that produces '&' on US layout.
+      Super-Shift-n: [C-s, c]        # new tmux window  (prefix + c)
+      Super-Shift-w: [C-s, Shift-7]  # kill tmux window (prefix + &)
+
       # Drop these — typing them as Ctrl-X would break the shell:
       #   Ctrl-S freezes terminal output (XOFF)
       #   Ctrl-Z suspends the foreground job
