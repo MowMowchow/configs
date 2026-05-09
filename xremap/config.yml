@@ -105,15 +105,17 @@ keymap:
 
       Super-q: Alt-F4
 
-      # Drop Super+1..9 globally so GNOME doesn't launch dock apps
-      # when you fat-finger them outside a terminal. (In the terminal
-      # layer above, these are tmux switch-to-window N.)
-      Super-1: []
-      Super-2: []
-      Super-3: []
-      Super-4: []
-      Super-5: []
-      Super-6: []
-      Super-7: []
-      Super-8: []
-      Super-9: []
+      # Super+1..9 → Ctrl+1..9, matching macOS Cmd+1..9 semantics:
+      # in browsers (Chrome/Firefox/Safari), Cmd+1..9 jumps to tab N;
+      # the Linux equivalent is Ctrl+1..9. xremap intercepts before
+      # GNOME, so GNOME's "switch-to-application-N" dock binding is
+      # bypassed entirely without needing a gsettings override.
+      Super-1: C-1
+      Super-2: C-2
+      Super-3: C-3
+      Super-4: C-4
+      Super-5: C-5
+      Super-6: C-6
+      Super-7: C-7
+      Super-8: C-8
+      Super-9: C-9
