@@ -208,4 +208,6 @@ export COLORTERM=truecolor
 export PATH="$PATH:$HOME/.spicetify"
 
 export PATH="$HOME/.local/bin:$PATH"
-
+export CLAUDE_CODE_EFFORT_LEVEL="MAX"
+export PATH="$HOME/.local/share/sapling:$PATH"
+export PATH="$HOME/.local/share/sapling:$PATH"
