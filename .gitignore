@@ -40,3 +40,25 @@ systemd/
 # that still has `neofetch` in its rc, by an old binary still on PATH,
 # or by another tool that probes for it.
 neofetch/
+
+# GNOME / desktop runtime state. These are written by gnome-shell,
+# gsettings, GTK, ibus, PulseAudio, etc. into ~/.config on every login;
+# they're machine-local and not part of the dotfiles surface.
+.gsd-keyboard.settings-ported
+gnome-initial-setup-done
+mimeapps.list
+user-dirs.dirs
+user-dirs.locale
+dconf/
+evolution/
+gtk-3.0/
+gtk-4.0/
+ibus/
+pulse/
+update-notifier/
+goa-1.0/
+gnome-session/
+nautilus/
+
+# snyk-ls runtime cache (written by the LSP; not part of config)
+snyk/
