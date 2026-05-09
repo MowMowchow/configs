@@ -209,5 +209,7 @@ export PATH="$PATH:$HOME/.spicetify"
 
 export PATH="$HOME/.local/bin:$PATH"
 export CLAUDE_CODE_EFFORT_LEVEL="MAX"
-export PATH="$HOME/.local/share/sapling:$PATH"
+
+# Sapling per upstream install instructions
+# (https://sapling-scm.com/docs/introduction/installation/).
 export PATH="$HOME/.local/share/sapling:$PATH"
