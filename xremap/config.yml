@@ -72,6 +72,21 @@ keymap:
       Super-8: [C-s, '8']
       Super-9: [C-s, '9']
 
+      # Arrow-key navigation, macOS-style:
+      #   Super+Left/Right  → line start / line end
+      #   Super+Up/Down     → scrollback top / bottom (in kitty et al.,
+      #                       Ctrl+Home/End scrolls the pane)
+      # Shift variants extend the selection (no shell semantics, but
+      # consistent with global layer below).
+      Super-Left:        Home
+      Super-Right:       End
+      Super-Up:          C-Home
+      Super-Down:        C-End
+      Super-Shift-Left:  Shift-Home
+      Super-Shift-Right: Shift-End
+      Super-Shift-Up:    C-Shift-Home
+      Super-Shift-Down:  C-Shift-End
+
       # Drop these — typing them as Ctrl-X would break the shell:
       #   Ctrl-S freezes terminal output (XOFF)
       #   Ctrl-Z suspends the foreground job
@@ -119,3 +134,16 @@ keymap:
       Super-7: C-7
       Super-8: C-8
       Super-9: C-9
+
+      # Arrow-key navigation, macOS-style text editing:
+      #   Cmd+Left/Right  → line start / line end           → Home/End
+      #   Cmd+Up/Down     → document start / document end   → Ctrl+Home/End
+      # With Shift held, extend the selection.
+      Super-Left:        Home
+      Super-Right:       End
+      Super-Up:          C-Home
+      Super-Down:        C-End
+      Super-Shift-Left:  Shift-Home
+      Super-Shift-Right: Shift-End
+      Super-Shift-Up:    C-Shift-Home
+      Super-Shift-Down:  C-Shift-End

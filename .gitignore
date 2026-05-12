@@ -62,3 +62,11 @@ nautilus/
 
 # snyk-ls runtime cache (written by the LSP; not part of config)
 snyk/
+
+# Browser / app runtime state — like the GNOME block above, these are
+# machine-local caches that get written by the app itself.
+google-chrome/
+chromium/
+jxbrowser/
+menus/
+sapling/
