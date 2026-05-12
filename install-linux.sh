@@ -483,6 +483,11 @@ After=graphical-session.target
 PartOf=graphical-session.target
 
 [Service]
+# Wait for the GNOME session to import DISPLAY/XAUTHORITY into the systemd
+# user manager environment. Without this guard, xremap can start before X is
+# accepting connections and fall back to no-X11 mode, where application-
+# scoped rules (the terminal block) silently stop matching.
+ExecStartPre=/bin/sh -c 'until systemctl --user show-environment | grep -q "^DISPLAY="; do sleep 0.2; done'
 ExecStart=%h/.local/bin/xremap --watch %h/.config/xremap/config.yml
 Restart=on-failure
 RestartSec=2
@@ -490,7 +495,7 @@ StandardOutput=journal
 StandardError=journal
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target
 UNIT
 ok "xremap.service written"
 
