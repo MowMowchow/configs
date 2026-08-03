@@ -3,6 +3,10 @@ return {
     version = '1.*',
 
     opts = {
+        -- Use Lua fuzzy matching: the prebuilt Rust binary download fails behind
+        -- some corporate proxies, and the Lua path needs no network at all
+        fuzzy = { implementation = "lua" },
+
         keymap = {
             preset = 'none',
             ['<CR>'] = { 'accept', 'fallback' },
@@ -36,4 +40,7 @@ return {
             },
         },
     },
+
+    -- Allow site plugins to append their own completion sources
+    opts_extend = { "sources.default" },
 }

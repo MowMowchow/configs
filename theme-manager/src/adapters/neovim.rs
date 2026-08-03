@@ -111,16 +111,14 @@ pub fn apply(
     Ok(())
 }
 
-/// Resolve the nvim binary. Returns None only if the resolved path doesn't
-/// exist as a file on disk — practically nvim is either installed (Some)
-/// or absent (None and the adapter skips silently).
+/// Resolve nvim, or None when it is not installed at all.
+///
+/// resolve_bin returns the bare name when nothing matched, which would make
+/// every later invocation fail with ENOENT rather than skipping cleanly — so
+/// confirm with a PATH lookup in that case.
 fn find_nvim() -> Option<String> {
     let resolved = crate::cmd::resolve_bin("nvim");
-    // resolve_bin returns either an absolute /usr/.../nvim that we
-    // verified exists, or the bare "nvim" PATH-fallback. The bare-name
-    // case means our probes failed; we then re-check with `which` to
-    // distinguish installed-but-not-in-our-list from not-installed.
-    if std::path::Path::new(&resolved).is_absolute() {
+    if resolved.starts_with('/') {
         return Some(resolved);
     }
     Command::new("which")

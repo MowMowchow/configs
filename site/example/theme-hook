@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Executed after every appearance change. Budget: 2 seconds, then killed.
+#
+#   theme-hook <appearance> <family> <variant>
+#
+# Env: THEME_MANAGER_API, THEME_MANAGER_CONF, THEME_MANAGER_DIR
+# Log to stderr; stdout is ignored. Exit 0 on success. Must be idempotent.
+set -uo pipefail
+
+appearance="${1:?usage: theme-hook <appearance> <family> <variant>}"
+family="${2:-}"
+variant="${3:-}"
+
+# Real plugins do something here — e.g. push $appearance to remote hosts you
+# are currently logged into. Anything slow or network-bound belongs in the
+# background so the 2s budget is never the user's problem:
+#
+#   ( slow_remote_push "$appearance" >/dev/null 2>&1 & ) &
+#   disown 2>/dev/null || true
+
+echo "example plugin: would apply ${family}/${variant} ${appearance}" >&2
+exit 0

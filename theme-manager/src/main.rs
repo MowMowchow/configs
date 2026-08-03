@@ -4,6 +4,8 @@ mod adapters;
 mod appearance;
 pub mod cmd;
 mod config;
+mod platform;
+mod site;
 mod theme;
 
 use config::Config;
@@ -38,9 +40,97 @@ enum Commands {
     },
     /// Watch for system appearance changes (daemon mode)
     Watch,
+    /// Report what the theme system can see and whether it is healthy
+    Doctor,
 }
 
-fn apply_appearance(config: &Config, app: appearance::Appearance) {
+/// One-shot health check. Everything a "the bar is the wrong colour" question
+/// needs, in one command, so nobody has to remember five separate probes.
+fn doctor(config_path: &std::path::Path) -> i32 {
+    let mut problems = 0;
+    let mut note = |ok: bool, label: &str, detail: String| {
+        println!("  {} {:<22} {}", if ok { "ok  " } else { "FAIL" }, label, detail);
+        if !ok {
+            problems += 1;
+        }
+    };
+
+    println!("platform");
+    note(true, "backend", appearance::backend().to_string());
+    match appearance::try_get_current() {
+        Some(a) => note(true, "appearance", format!("{}", a)),
+        None => note(
+            false,
+            "appearance",
+            "undeterminable — no OS appearance on this host".into(),
+        ),
+    }
+
+    println!("config");
+    let config = match Config::load(config_path) {
+        Ok(c) => {
+            note(true, "config.toml", format!("{}", config_path.display()));
+            c
+        }
+        Err(e) => {
+            note(false, "config.toml", e);
+            return 1;
+        }
+    };
+    let family = ThemeFamily::parse(&config.theme.family);
+    note(
+        family.is_valid_variant(&config.theme.variant),
+        "theme",
+        format!("{} / {}", family, config.theme.variant),
+    );
+
+    println!("artifacts");
+    let tmux_dir = config::expand_tilde(&config.paths.tmux_config);
+    for name in ["dark-theme.auto.conf", "light-theme.auto.conf"] {
+        let p = tmux_dir.join(name);
+        match std::fs::read_to_string(&p) {
+            Ok(body) => {
+                let id = body
+                    .lines()
+                    .find_map(|l| l.strip_prefix("# theme-id: "))
+                    .unwrap_or("<no theme-id>");
+                note(true, name, id.to_string());
+            }
+            Err(e) => note(false, name, format!("{}: {}", p.display(), e)),
+        }
+    }
+
+    println!("site plugins");
+    let plugins = site::discover(&config_dir());
+    if plugins.is_empty() {
+        println!("  ---- {:<22} none installed", "");
+    }
+    for p in &plugins {
+        let hook = p.dir.join("theme-hook");
+        note(
+            true,
+            &p.name,
+            format!(
+                "api v{}{}",
+                site::API_VERSION,
+                if hook.is_file() { ", theme-hook" } else { "" }
+            ),
+        );
+    }
+
+    println!();
+    if problems == 0 {
+        println!("healthy");
+        0
+    } else {
+        println!("{} problem(s) found", problems);
+        1
+    }
+}
+
+/// Apply the configured theme for `app`. Returns true if every adapter
+/// succeeded, so the daemon can retry a partial apply instead of latching it.
+fn apply_appearance(config: &Config, app: appearance::Appearance) -> bool {
     let family = ThemeFamily::parse(&config.theme.family);
     let variant = &config.theme.variant;
 
@@ -49,13 +139,34 @@ fn apply_appearance(config: &Config, app: appearance::Appearance) {
         family, variant, app
     );
 
+    // Regenerate both sets of theme artifacts unconditionally, so an edit to
+    // theme.rs propagates on the next rebuild without needing
+    // `theme-manager set`. These writes are ~1 ms combined.
+    //
+    // Kitty used to regenerate only when the files were missing while tmux
+    // regenerated always — which meant a palette edit reached tmux but not
+    // kitty. Same policy for both is the point.
+    let mut errors = 0;
+    for (name, result) in [
+        (
+            "kitty conf",
+            adapters::kitty::write_auto_confs(family, variant, &config.paths),
+        ),
+        (
+            "tmux conf",
+            adapters::tmux::write_theme_confs(family, variant, &config.paths),
+        ),
+    ] {
+        if let Err(e) = result {
+            eprintln!("[theme-manager] {} write error: {}", name, e);
+            errors += 1;
+        }
+    }
+
     // Run each adapter independently — one failure must not block others.
     // This follows the bulkhead pattern: isolate failure domains.
     let results: [(&str, Result<(), String>); 3] = [
-        (
-            "kitty",
-            adapters::kitty::apply(family, variant, &config.paths),
-        ),
+        ("kitty", adapters::kitty::reload()),
         (
             "tmux",
             adapters::tmux::apply(family, variant, app, &config.paths),
@@ -66,7 +177,6 @@ fn apply_appearance(config: &Config, app: appearance::Appearance) {
         ),
     ];
 
-    let mut errors = 0;
     for (name, result) in &results {
         match result {
             Ok(()) => eprintln!("[theme-manager] {} ok", name),
@@ -77,13 +187,42 @@ fn apply_appearance(config: &Config, app: appearance::Appearance) {
         }
     }
 
+    // Site plugins last: they may want to act on the result, and anything
+    // employer-specific must never be able to delay the local adapters.
+    // Bulkheaded the same way — a failing hook is reported, not fatal.
+    let config_root = config_dir();
+    let conf = config::expand_tilde(&config.paths.tmux_config).join(match app {
+        appearance::Appearance::Dark => "dark-theme.auto.conf",
+        appearance::Appearance::Light => "light-theme.auto.conf",
+    });
+    let hooks = site::run_theme_hooks(&config_root, app, &family.to_string(), variant, &conf);
+    let hook_count = hooks.len();
+    for (name, result) in &hooks {
+        match result {
+            Ok(()) => eprintln!("[theme-manager] site:{} ok", name),
+            Err(e) => {
+                eprintln!("[theme-manager] site:{} error: {}", name, e);
+                errors += 1;
+            }
+        }
+    }
+
     if errors > 0 {
         eprintln!(
-            "[theme-manager] {} of {} adapters failed",
+            "[theme-manager] {} of {} steps failed",
             errors,
-            results.len()
+            results.len() + hook_count + 2
         );
     }
+
+    errors == 0
+}
+
+/// Root of the dotfiles tree — the parent of theme-manager's own config dir.
+fn config_dir() -> std::path::PathBuf {
+    dirs::home_dir()
+        .map(|h| h.join(".config"))
+        .unwrap_or_else(|| std::path::PathBuf::from(".config"))
 }
 
 fn main() {
@@ -113,7 +252,7 @@ fn main() {
                 std::process::exit(1);
             }
 
-            let mut config = Config::load(&config_path).unwrap_or_default();
+            let mut config = load_config(&config_path);
             config.theme.family = f.to_string();
             config.theme.variant = v.clone();
 
@@ -122,15 +261,15 @@ fn main() {
                 std::process::exit(1);
             }
 
-            // apply_appearance now handles the kitty auto.conf write itself,
-            // so Set just needs to apply for the current system appearance.
+            // apply_appearance regenerates both sets of theme artifacts, so
+            // there is nothing to write here.
             let app = appearance::get_current();
             apply_appearance(&config, app);
 
             println!("Theme set to {} ({})", f, v);
         }
         Commands::Get => {
-            let config = Config::load(&config_path).unwrap_or_default();
+            let config = load_config(&config_path);
             let family = ThemeFamily::parse(&config.theme.family);
             let app = appearance::get_current();
 
@@ -197,8 +336,11 @@ fn main() {
                     std::process::exit(1);
                 }
             };
-            let config = Config::load(&config_path).unwrap_or_default();
+            let config = load_config(&config_path);
             apply_appearance(&config, app);
+        }
+        Commands::Doctor => {
+            std::process::exit(doctor(&config_path));
         }
         Commands::Watch => {
             eprintln!("[theme-manager] starting daemon...");
@@ -207,11 +349,40 @@ fn main() {
                 eprintln!("[theme-manager] appearance changed: {}", app);
                 match Config::load(&config_path) {
                     Ok(config) => apply_appearance(&config, app),
-                    Err(e) => eprintln!("[theme-manager] config load error: {}", e),
+                    Err(e) => {
+                        // Do not fall back to defaults here: that would apply
+                        // the wrong theme and then overwrite the generated
+                        // artifacts with it. Report false so the tick is
+                        // retried once the config is readable again.
+                        eprintln!("[theme-manager] config load error: {}", e);
+                        false
+                    }
                 }
             });
         }
     }
+}
+
+/// Load the config for a one-shot command, refusing to guess.
+///
+/// A missing config is fine — first run, use defaults. A config that exists but
+/// does not parse is not: `unwrap_or_default()` silently switched the user to
+/// catppuccin *and* discarded their `[paths]`, and the very next step
+/// regenerates the theme artifacts from that wrong theme. Fail fast instead.
+fn load_config(path: &std::path::Path) -> Config {
+    if !path.exists() {
+        eprintln!(
+            "[theme-manager] no config at {}, using defaults",
+            path.display()
+        );
+        return Config::default();
+    }
+    Config::load(path).unwrap_or_else(|e| {
+        eprintln!("[theme-manager] {} exists but could not be loaded", path.display());
+        eprintln!("[theme-manager]   {}", e);
+        eprintln!("[theme-manager]   fix it, or delete it to fall back to defaults");
+        std::process::exit(1);
+    })
 }
 
 fn capitalize(s: &str) -> String {

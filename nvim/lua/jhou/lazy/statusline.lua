@@ -46,10 +46,13 @@ return {
 			tabline = {},
 			winbar = {},
 			inactive_winbar = {},
-			extensions = {
-			'lazy',
-			'mason',
-			}
+			extensions = (function()
+				local exts = { 'lazy' }
+				if not require("jhou.env").managed then
+					table.insert(exts, 'mason')
+				end
+				return exts
+			end)()
 		}
 
 	end

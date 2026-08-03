@@ -70,3 +70,38 @@ chromium/
 jxbrowser/
 menus/
 sapling/
+
+# ─────────────────────────────────────────────────────────────────
+# Site plugins — company/employer-specific code that must never be
+# published. Everything under site/ is private by default; only the
+# API documentation and the reference example are tracked.
+# ─────────────────────────────────────────────────────────────────
+site/*
+!site/README.md
+!site/example/
+
+# Host-specific sync scripts (may contain internal hostnames)
+sync-to-*.sh
+
+# Private grep patterns for `make check-public`
+.denylist
+
+# Never track backups or local scratch — these have sidestepped the
+# more specific rules above before.
+*.bak
+*.bak-*
+*.orig
+*.local
+secrets/
+
+# NOTE: tmux/{dark,light}-theme.auto.conf are deliberately NOT ignored,
+# unlike kitty's equivalents above. Remote hosts (devservers, containers)
+# have no theme-manager binary to regenerate them — tmux/theme-apply.sh
+# sources them directly — so a fresh clone there must already contain them.
+# They only change when the theme family/variant changes, not on every
+# dark/light toggle, so the tree does not churn.
+
+# iTerm2 app-support symlink: an absolute path into ~/Library pointing at
+# runtime state (sockets, SavedState, the server binary). Machine-specific
+# and not configuration.
+iterm2/

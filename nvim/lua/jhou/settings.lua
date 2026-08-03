@@ -13,6 +13,7 @@ vim.opt.wrap = false
 
 -- Auto-reload files when changed externally
 vim.opt.autoread = true
+vim.opt.updatetime = 300  -- CursorHold fires after 300ms idle (default 4000)
 
 -- Start server socket for remote theme switching (used by theme-manager daemon)
 local socket_path = '/tmp/nvim-theme-' .. vim.fn.getpid() .. '.sock'

@@ -1,0 +1,10 @@
+# Reference site plugin — INACTIVE.
+#
+# This file is plugin.toml.template, not plugin.toml, so the example is never
+# discovered or executed. To use it:
+#   cp -r site/example site/<yourname>
+#   mv site/<yourname>/plugin.toml.template site/<yourname>/plugin.toml
+# See ../README.md for the full contract.
+api_version = 1
+name        = "example"
+description = "Reference plugin — demonstrates every hook, does nothing real"

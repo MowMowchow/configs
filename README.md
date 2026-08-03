@@ -1,25 +1,73 @@
 # dotfiles
 
-macOS dev environment — keyboard-driven, consistently themed, one-command setup. Linux (Ubuntu 26.04 LTS) is supported on a best-effort basis.
+Unix dev environment — keyboard-driven, consistently themed, one-command setup.
+Runs on **macOS** and **Ubuntu 24.04 LTS+** / Debian. (24.04 is the primary Linux target;
+26.04 is supported best-effort.)
 
 ## Quick Start
 
 ```bash
 git clone git@github.com:MowMowchow/configs.git ~/.config
 cd ~/.config && ./install.sh
+theme-manager doctor        # verify
 ```
 
-`install.sh` detects the host OS and dispatches to `install-macos.sh` or `install-linux.sh`. Both are idempotent — safe to re-run on an existing setup.
+The installer is idempotent — safe to re-run on an existing setup. It detects the OS and
+dispatches to a platform layer; nothing OS-specific lives outside `platform/`.
 
-### Linux (Ubuntu 26.04 LTS, untested)
+## Structure
 
-The Linux path is best-effort and may need fixing on first run. Notable differences from macOS:
+```
+install.sh          stage driver — detects the OS, loads stages, runs them
+platform/
+  common.sh         shared helpers, detect_os, link()
+  stage.sh          the stage contract and runner (~130 lines)
+  stages/*.sh       one file per stage: _check / _apply / [_verify]
+  macos.sh          manifest: Homebrew, LaunchAgent, which stages apply
+  linux.sh          manifest: apt/snap/tarballs, systemd unit, xremap
+site/               employer/machine-specific plugins (gitignored, see site/README.md)
+theme-manager/      Rust daemon: one palette, every tool follows the OS
+xremap/             Linux: macOS-style Super shortcuts (see docs/keybinds-linux.md)
+publish.sh          push the sanitized tree to the public repo (see PUBLISHING.md)
+```
 
-- Auto dark/light switching depends on `gsettings` (works on GNOME — Ubuntu's default; KDE/sway/etc. fall back to 5-second polling).
-- `aerospace`, `iterm2`, and `spicetify-cli` are skipped.
-- Fonts: apt's `fonts-jetbrains-mono` is installed as a baseline, plus the JetBrainsMono Nerd Font tarball from `github.com/ryanoasis/nerd-fonts` for icon glyphs.
-- The theme-manager daemon runs as a `systemd --user` unit instead of a LaunchAgent. Logs: `journalctl --user -u theme-manager`.
-- You may need to set zsh as your login shell after install: `chsh -s "$(command -v zsh)"`.
+### The installer
+
+`install.sh` is a stage driver, not a script. A stage is two or three shell functions in
+`platform/stages/<name>.sh`:
+
+| function | required | contract |
+|---|---|---|
+| `<name>_check`  | yes | return 0 iff the goal is already met; **no side effects** |
+| `<name>_apply`  | yes | do the work |
+| `<name>_verify` | no  | post-condition, when it differs from the pre-condition |
+
+Each per-OS manifest registers the stages that apply to it with `stage <name> [profile]`. That
+is the whole framework — no base class, no registry file: a stage exists because a file defines
+it and a manifest registers it.
+
+```bash
+./install.sh                      # everything, profile auto-detected
+./install.sh --list               # what would run
+./install.sh --dry-run            # runs only the _check functions
+./install.sh --only theme_manager # or --skip packages
+./install.sh --profile personal   # override the auto-detected profile
+```
+
+Profile is `work` when a `site/` plugin is present, `personal` otherwise — reusing a signal that
+already exists rather than inventing a second one.
+
+**Adding an OS** means adding `platform/<os>.sh` that defines `platform_install_packages`,
+`platform_install_daemon` and `platform_notes`, registers its stages, and one line in
+`detect_os`. Nothing else changes.
+
+Everything is bash 3.2 compatible: macOS ships 3.2.57 and always will, so no associative arrays,
+no `[[ =~ ]]`, no `${x,,}`.
+
+**Adding company-specific config** means creating `site/<name>/` — proxies, internal tooling,
+private bootstrap. It is gitignored, the core only ever execs it across a process boundary, and it
+can live in its own private repo. See [site/README.md](site/README.md). `make check-public`
+refuses to let any of it reach a tracked file.
 
 ## What's Inside
 
@@ -37,29 +85,31 @@ The Linux path is best-effort and may need fixing on first run. Notable differen
 
 ## Theme System
 
-`theme-manager` is a Rust binary that keeps kitty, neovim, and tmux in sync. It auto-switches between dark/light variants when macOS appearance changes.
+`theme-manager` is a Rust binary that keeps kitty, neovim, and tmux in sync, following the OS
+light/dark setting: the macOS appearance setting, or `org.gnome.desktop.interface color-scheme`
+on GNOME. On a host with no desktop (a remote server, a container) there is no OS appearance —
+the terminal drives the theme instead, via tmux's DEC mode 2031 support.
 
 ```bash
 theme-manager set gruvbox-material medium    # set theme + variant
 theme-manager apply                          # re-apply current theme
 theme-manager list                           # show available themes
-theme-manager watch                          # daemon mode (runs via LaunchAgent)
+theme-manager watch                          # daemon mode (LaunchAgent / systemd user unit)
+theme-manager doctor                         # what can it see, and is it healthy?
 ```
 
 Supported families: `gruvbox`, `gruvbox-material`, `catppuccin`
 
 ## Install Phases
 
-1. **Homebrew** — package manager
-2. **Packages** — tmux, neovim, eza, bat, fzf, ripgrep, fd, node, python, go, etc.
-3. **Rust** — toolchain via rustup
-4. **Oh My Zsh** — zsh framework + plugins
-5. **Symlinks** — `~/.zshrc`, `~/.tmux.conf`, `~/.tmux`
-6. **Tmux plugins** — TPM + catppuccin
-7. **Neovim** — lazy.nvim auto-bootstraps; formatters (prettier, black, isort) installed
-8. **theme-manager** — built from source, installed to `~/.local/bin`
-9. **LaunchAgent** — theme-manager daemon starts at login
-10. **Secrets** — reminds you to create `~/.secrets` for API keys
+1. **Platform packages** — Homebrew on macOS, apt + cargo on Ubuntu/Debian
+2. **Rust toolchain** — via rustup
+3. **Oh My Zsh** — zsh framework
+4. **Symlinks** — `~/.zshrc`, `~/.tmux.conf`, `~/.tmux`
+5. **Tmux plugins** — TPM
+6. **theme-manager** — built from source into `~/.local/bin`
+7. **Service** — LaunchAgent (macOS) or systemd user unit (Linux)
+8. **Site plugins** — each `site/*/bootstrap.sh`, if present
 
 ## Secrets
 

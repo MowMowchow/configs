@@ -26,3 +26,13 @@ vim.api.nvim_set_keymap(
   'n', '<leader>di', ':lua vim.diagnostic.open_float()<CR>',
   { noremap = true, silent = true }
 )
+
+-- Format current file (conform locally, site-provided formatter when managed)
+vim.keymap.set("n", "<leader>fm", function()
+  local ok, conform = pcall(require, "conform")
+  if ok and conform then
+    conform.format({ async = true, lsp_fallback = true })
+  else
+    vim.lsp.buf.format({ async = true, timeout_ms = 30000 })
+  end
+end, { desc = "Format buffer" })

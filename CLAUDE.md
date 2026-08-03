@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Personal dotfiles/config repository for macOS development environment. Configurations are symlinked or sourced from `~/.config/`. The repository prioritizes keyboard-driven workflows with consistent Catppuccin theming across tools.
+Personal dotfiles/config repository for macOS development environment. Configurations are symlinked or sourced from `~/.config/`. The repository prioritizes keyboard-driven workflows with consistent theming across tools, driven by `theme-manager/`.
 
 ## Tool Configurations
 
@@ -19,7 +19,9 @@ Personal dotfiles/config repository for macOS development environment. Configura
 
 ## Cross-Tool Conventions
 
-**Theme:** Catppuccin Mocha applied across Neovim, Tmux, and Kitty for visual consistency.
+**Theme:** `theme-manager/` (Rust) is the single source of truth for Neovim, Tmux, and Kitty, and follows the macOS dark/light setting. Active family lives in `theme-manager/config.toml` (currently gruvbox-material, medium). Palettes are defined once in `theme-manager/src/theme.rs` — never hardcode hex values elsewhere.
+
+On remote hosts (devserver, OnDemand) there is no theme-manager binary; `tmux/theme-apply.sh` sources the generated `tmux/{dark,light}-theme.auto.conf` instead. Live dark/light following there needs tmux >= 3.6.
 
 **Navigation patterns:**
 - Tmux prefix: `Ctrl+S` (not default `Ctrl+B`)
@@ -38,7 +40,7 @@ Prefix: `Ctrl+S`
 | `prefix + h/j/k/l` | Navigate panes |
 | `prefix + r` | Reload config |
 
-Plugins managed in `tmux/plugins/` with Catppuccin theme.
+Plugins live in `tmux/plugins/` (TPM). Note: currently empty — TPM is not installed, so the `run '~/.tmux/plugins/tpm/tpm'` line in `tmux.conf` is a no-op and the catppuccin family would fail.
 
 ## Kitty Terminal
 

@@ -1,6 +1,28 @@
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
 
+# ─── Site plugins ───────────────────────────────────────────────
+# Employer / machine specific environment. Each site/<name>/env.sh is
+# sourced here, early, before Oh My Zsh. Nothing under site/ except the
+# API docs and the example is committed — see site/README.md.
+for _site_env in "$HOME"/.config/site/*/env.sh; do
+  [[ -r "$_site_env" ]] && source "$_site_env"
+done
+unset _site_env
+
+# Safer sudo rm: --preserve-root=all refuses to recurse into / and
+# --one-file-system stops it crossing into other mounts.
+if [[ -o interactive ]]; then
+  sudo() {
+    if [ "$1" = "rm" ]; then
+      shift
+      command sudo rm --preserve-root=all --one-file-system "$@"
+    else
+      command sudo "$@"
+    fi
+  }
+fi
+
 # Path to your Oh My Zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
 
@@ -70,9 +92,18 @@ ZSH_THEME="robbyrussell"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git vi-mode)
+# Skip Oh My Zsh's compaudit before compinit. It stats every fpath directory
+# checking for group/world-writable dirs — ~27ms locally and considerably
+# worse over a network home directory, which is the devserver case. On a
+# single-user machine it protects against nothing you do not already control.
+ZSH_DISABLE_COMPFIX=true
 
-source $ZSH/oh-my-zsh.sh
+# `git` is deliberately NOT here: it is 197 aliases costing ~40ms, and the
+# prompt's git info comes from OMZ's lib/git.zsh, not the plugin. It is
+# deferred until after the first prompt instead — see the end of this file.
+plugins=(vi-mode)
+
+[[ -f $ZSH/oh-my-zsh.sh ]] && source $ZSH/oh-my-zsh.sh
 
 # User configuration
 
@@ -115,15 +146,30 @@ export EZA_CONFIG_DIR="$HOME/.config/eza"
 [ -f "$HOME/.secrets" ] && source "$HOME/.secrets"
 
 # ZSH PLUGINS but not from oh-my-zsh
-# zsh-syntax-highlighting
-# zsh-syntax-highlighting (works on both Apple Silicon and Intel Macs)
-if [[ -f /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
-  source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-elif [[ -f /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
-  source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-elif [[ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
-  source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-fi
+# ── Deferred startup ─────────────────────────────────────────────
+# Anything below is needed only once you actually type something, not to draw
+# the first prompt. Loading it from a one-shot precmd hook lets the prompt
+# appear immediately and the rest arrive microseconds later, which is the
+# latency you actually feel when opening a pane.
+_deferred_init() {
+  # Run once, then remove the hook so later prompts cost nothing.
+  add-zsh-hook -d precmd _deferred_init
+  unfunction _deferred_init
+
+  # 197 git aliases (gst, gco, gd, ...). Not needed to render a prompt.
+  [[ -r "$ZSH/plugins/git/git.plugin.zsh" ]] && source "$ZSH/plugins/git/git.plugin.zsh"
+
+  # Syntax highlighting must be sourced last, and only matters while typing.
+  for _zsh_hl in \
+    /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+    /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+    /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh; do
+    if [[ -r "$_zsh_hl" ]]; then source "$_zsh_hl"; break; fi
+  done
+  unset _zsh_hl
+}
+autoload -Uz add-zsh-hook
+add-zsh-hook precmd _deferred_init
 
 
 # EVALS
@@ -142,8 +188,20 @@ alias ls="eza --long --git --color=always --icons=always"
 # }
 # add-zsh-hook chpwd tmux-window-name
 
-# system info banner — fastfetch is the active maintained replacement for neofetch
-fastfetch
+# System info banner — fastfetch replaced neofetch (archived upstream 2024).
+#
+# Runs in every shell, including every new tmux window and pane: wanted
+# behaviour, not an oversight. It costs ~60ms, which is the single largest
+# remaining item in this file — an accepted trade, deliberately made.
+# Set DOTFILES_NO_BANNER=1 to suppress it for a shell without editing this.
+#
+# stderr is dropped: on a managed Mac the kernel-extension query is refused by
+# security policy, so fastfetch prints two "Failed to query kext info" lines
+# before every banner. They are cosmetic — the banner itself renders fine —
+# and this is decoration, so nothing here is worth surfacing an error for.
+if [[ -z "${DOTFILES_NO_BANNER:-}" ]] && command -v fastfetch >/dev/null; then
+  fastfetch 2>/dev/null
+fi
 
 
 ### TMUX WINDOW RENAMING
@@ -208,8 +266,15 @@ export COLORTERM=truecolor
 export PATH="$PATH:$HOME/.spicetify"
 
 export PATH="$HOME/.local/bin:$PATH"
-export CLAUDE_CODE_EFFORT_LEVEL="MAX"
 
-# Sapling per upstream install instructions
+# Sapling, per upstream install instructions
 # (https://sapling-scm.com/docs/introduction/installation/).
 export PATH="$HOME/.local/share/sapling:$PATH"
+
+export CLAUDE_CODE_EFFORT_LEVEL="MAX"
+
+
+alias n="nvim"
+
+# Proxies, work aliases and any network-specific setup live in
+# site/<name>/env.sh, sourced at the top of this file.

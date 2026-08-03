@@ -11,7 +11,7 @@ vim.api.nvim_create_autocmd({ 'FocusGained', 'BufEnter', 'CursorHold', 'CursorHo
   desc = 'Reload file when changed externally',
   group = vim.api.nvim_create_augroup('auto-reload', { clear = true }),
   callback = function()
-    if vim.fn.mode() ~= 'c' then
+    if vim.fn.mode() ~= 'c' and vim.bo.buftype ~= 'nofile' then
       vim.cmd('checktime')
     end
   end,

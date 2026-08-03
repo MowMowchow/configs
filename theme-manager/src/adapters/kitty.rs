@@ -10,6 +10,17 @@ use std::time::Duration;
 
 const KITTY_TIMEOUT: Duration = Duration::from_secs(2);
 
+/// kitty >= 0.38 picks between three auto.conf files using the OS-reported
+/// TRI-state, not a boolean.
+///
+/// This matters on GNOME/Ubuntu, where switching to light mode reports
+/// *no-preference* rather than prefer-light. Writing only dark and light there
+/// means kitty matches neither file and silently falls back to whatever
+/// kitty.conf says — the user toggles to light and kitty keeps stale colours,
+/// with no error anywhere. Writing the extra file is harmless on macOS, which
+/// only ever reports dark or light.
+const LIGHT_AUTO_CONFS: &[&str] = &["light-theme.auto.conf", "no-preference-theme.auto.conf"];
+
 /// Generate a complete kitty color conf from a palette.
 fn generate_conf(palette: &Palette) -> String {
     let t = &palette.terminal;
@@ -117,7 +128,9 @@ pub fn write_auto_confs(
             let light_src = themes_dir.join(CatppuccinFlavor::Latte.kitty_file());
 
             copy_theme_file(&dark_src, &kitty_dir.join("dark-theme.auto.conf"))?;
-            copy_theme_file(&light_src, &kitty_dir.join("light-theme.auto.conf"))?;
+            for name in LIGHT_AUTO_CONFS {
+                copy_theme_file(&light_src, &kitty_dir.join(name))?;
+            }
         }
         _ => {
             let contrast = Contrast::parse(variant);
@@ -130,11 +143,11 @@ pub fn write_auto_confs(
             )
             .map_err(|e| format!("write dark-theme.auto.conf: {}", e))?;
 
-            fs::write(
-                kitty_dir.join("light-theme.auto.conf"),
-                generate_conf(&light_palette),
-            )
-            .map_err(|e| format!("write light-theme.auto.conf: {}", e))?;
+            let light_conf = generate_conf(&light_palette);
+            for name in LIGHT_AUTO_CONFS {
+                fs::write(kitty_dir.join(name), &light_conf)
+                    .map_err(|e| format!("write {}: {}", name, e))?;
+            }
         }
     }
 
@@ -159,25 +172,16 @@ fn copy_theme_file(src: &std::path::Path, dst: &std::path::Path) -> Result<(), S
 }
 
 /// Signal kitty to reload its config. Kitty auto-selects the right
-/// *.auto.conf based on current system appearance.
+/// *.auto.conf based on current system appearance, so this is only strictly
+/// needed when the *palette* changed rather than the appearance — but it is
+/// cheap and makes a `theme-manager set` take effect immediately.
+///
+/// `-x` matters: without it `pkill` does an unanchored substring match on the
+/// process name, and SIGUSR1's default disposition is to terminate. Any
+/// unrelated process whose name merely contains "kitty" would be killed.
 pub fn reload() -> Result<(), String> {
     let mut cmd = Command::new("pkill");
-    cmd.args(["-USR1", "kitty"]);
+    cmd.args(["-x", "-USR1", "kitty"]);
     let _ = run_with_timeout(cmd, KITTY_TIMEOUT);
     Ok(())
-}
-
-/// Ensure both *.auto.conf files exist on disk, then signal reload.
-///
-/// Both legs are needed for kitty to pick up a theme: write_auto_confs alone
-/// leaves a running kitty stuck on its old colors; reload alone is a no-op
-/// when the auto.conf files don't exist (the apply-without-set bug that
-/// silently produced an unthemed kitty on a fresh install).
-pub fn apply(
-    family: ThemeFamily,
-    variant: &str,
-    paths: &PathsConfig,
-) -> Result<(), String> {
-    write_auto_confs(family, variant, paths)?;
-    reload()
 }
