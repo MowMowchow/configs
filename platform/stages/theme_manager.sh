@@ -50,4 +50,12 @@ TOML
   ok "theme config seeded (gruvbox-material / medium)"
 }
 
-theme_manager_verify() { "$LOCAL_BIN/theme-manager" --version >/dev/null 2>&1; }
+# `get` and not `--version`: the clap command has no version attribute, so
+# `--version` exits 2 ("unexpected argument") and this reported UNVERIFIED
+# after every successful build. `get` just reads config.toml, so it works
+# headlessly, and unlike a check for the file it proves the binary actually
+# executes — which is what catches a broken code signature on macOS, where
+# overwriting the running binary makes every later invocation die on SIGKILL.
+# Not `doctor`: that deliberately exits non-zero when it finds problems, such
+# as an undeterminable appearance on a headless box.
+theme_manager_verify() { "$LOCAL_BIN/theme-manager" get >/dev/null 2>&1; }

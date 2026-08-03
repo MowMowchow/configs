@@ -50,6 +50,8 @@ KITTY_VERSION="${KITTY_VERSION:-0.46.2}"
 SAPLING_VERSION="${SAPLING_VERSION:-0.2.20260317-201835+0234c21f}"
 XREMAP_VERSION="${XREMAP_VERSION:-0.15.5}"
 FASTFETCH_VERSION="${FASTFETCH_VERSION:-2.66.0}"
+# Only used for the no-snap tarball fallback; the snap tracks stable itself.
+NVIM_VERSION="${NVIM_VERSION:-v0.11.4}"
 
 # ── Preflight ────────────────────────────────────────────────────
 
@@ -228,17 +230,44 @@ _install_neovim() {
     ok "nvim $(snap list nvim | awk 'NR==2 {print $2}') (snap)"
     return
   fi
-  if ! need snap; then
-    warn "snap unavailable — apt's neovim is 0.9.5 and your plugins need >= 0.11"
-    return
+  if need snap; then
+    # Remove apt's copy first so PATH resolves to /snap/bin/nvim.
+    dpkg -l neovim 2>/dev/null | grep -q '^ii' && sudo apt-get remove -y -qq neovim
+    if sudo snap install nvim --classic; then
+      ok "nvim $(snap list nvim | awk 'NR==2 {print $2}') (snap)"
+      return
+    fi
+    warn "snap install nvim failed — falling back to the upstream tarball"
   fi
-  # Remove apt's copy first so PATH resolves to /snap/bin/nvim.
-  dpkg -l neovim 2>/dev/null | grep -q '^ii' && sudo apt-get remove -y -qq neovim
-  if sudo snap install nvim --classic; then
-    ok "nvim $(snap list nvim | awk 'NR==2 {print $2}') (snap)"
+  _install_neovim_tarball
+}
+
+# Fallback for hosts with no snapd: Docker/LXC, WSL, minimal cloud images,
+# managed images that strip it, and Debian (which common.sh routes here too).
+#
+# Without this the run finished with NO neovim at all — `neovim` is
+# deliberately absent from APT_PACKAGES because apt's 0.9.5 is too old, so the
+# snapless path installed nothing and only warned. packages_verify does notice
+# the missing nvim, but that downgrades the stage to UNVERIFIED rather than
+# failing, and the installer still exits 0.
+_install_neovim_tarball() {
+  local dir="$HOME/.local/nvim"
+  local arch; arch="$(uname -m)"
+  case "$arch" in
+    aarch64 | arm64) arch=arm64 ;;
+    *) arch=x86_64 ;;
+  esac
+  info "  installing neovim $NVIM_VERSION ($arch) — apt's 0.9.5 is below the 0.11 floor"
+  local tmp; tmp="$(mktemp -d)"
+  if curl -fsSL "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-${arch}.tar.gz" -o "$tmp/nvim.tgz" \
+      && rm -rf "$dir" && mkdir -p "$dir" \
+      && tar -xzf "$tmp/nvim.tgz" -C "$dir" --strip-components=1; then
+    ln -sf "$dir/bin/nvim" "$LOCAL_BIN/nvim"
+    ok "nvim $NVIM_VERSION -> $LOCAL_BIN (tarball)"
   else
-    warn "snap install nvim failed — plugins require >= 0.11 and will not bootstrap"
+    warn "neovim tarball failed — no nvim >= 0.11; plugins will not bootstrap"
   fi
+  rm -rf "$tmp"
 }
 
 # apt ships 0.32.2; the *.auto.conf dark/light switching this whole theme
@@ -388,6 +417,35 @@ EOF
 platform_install_keybinds() {
   info "macOS-style Super shortcuts (xremap)"
 
+  # No graphical session: nothing here can ever work, and doing it anyway is
+  # not free. `systemctl --user enable --now` blocks for the full 90s start
+  # timeout on an ExecStartPre that waits for a DISPLAY which never arrives,
+  # then the unit churns on Restart=on-failure for the rest of the session.
+  # It also adds the user to the `input` group and installs a uinput udev
+  # rule — real keystroke-capture privilege — on a box that will never use it.
+  if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    warn "no graphical session — skipping xremap (headless/SSH host)"
+    return 0
+  fi
+
+  # xremap needs a different build per display server, and the x11 one does
+  # not degrade gracefully under Wayland: it starts fine (GNOME exports
+  # DISPLAY via XWayland) but cannot read WM_CLASS for Wayland-native
+  # windows, so the `application: only:` terminal layer silently stops
+  # matching and every binding falls through to the global block. That turns
+  # Super+C into SIGINT and Super+S into XOFF inside the terminal — worse
+  # than not running at all. Ubuntu 24.04 defaults to Wayland.
+  #
+  # The gnome build needs the companion Xremap GNOME Shell extension, which
+  # cannot be installed non-interactively, so refuse rather than pretend.
+  if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
+    warn "Wayland session — skipping xremap (the x11 build mis-scopes bindings here)"
+    echo "      To use it, log into an Xorg session, or install the GNOME build"
+    echo "      plus the Xremap GNOME Shell extension by hand:"
+    echo "      https://github.com/xremap/xremap#gnome-wayland"
+    return 0
+  fi
+
   local dir="$HOME/.local/xremap.app"
   local have=""
   [ -x "$dir/xremap" ] && have="$("$dir/xremap" --version 2>/dev/null | awk '{print $2}')"
@@ -516,9 +574,14 @@ platform_keybinds_present() {
 # proxy is configured before the network-heavy stages run.
 
 stage site_bootstrap work
+# rust BEFORE packages: the packages stage calls _install_cargo_tools, which
+# needs cargo. With packages first, `need cargo` was false on a clean box and
+# eza, stylua and tree-sitter-cli were skipped with only a warning — and since
+# nothing persisted ~/.cargo/bin onto the login PATH, every later run skipped
+# them again. `alias ls` is eza, so `ls` was broken in every new shell.
+stage rust
 stage packages
 stage fonts
-stage rust
 stage ohmyzsh
 stage symlinks
 stage tmux_plugins

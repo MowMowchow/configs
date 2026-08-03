@@ -5,6 +5,18 @@
 DOTFILES="${DOTFILES:-$HOME/.config}"
 LOCAL_BIN="${LOCAL_BIN:-$HOME/.local/bin}"
 
+# The installer must be able to see what it just installed.
+#
+# On a clean account ~/.local/bin does not exist at login, so Ubuntu's
+# ~/.profile skips it behind its `-d` guard and it is missing from the PATH
+# this script inherits. Stages then install binaries there and a later
+# `need <tool>` fails, reporting UNVERIFIED for work that actually succeeded.
+# The stages that use absolute paths were unaffected; `formatters` was not.
+case ":$PATH:" in
+  *":$LOCAL_BIN:"*) ;;
+  *) PATH="$LOCAL_BIN:$PATH"; export PATH ;;
+esac
+
 info() { printf "\033[1;34m==> %s\033[0m\n" "$1"; }
 ok()   { printf "\033[1;32m  ✓ %s\033[0m\n" "$1"; }
 warn() { printf "\033[1;33m  ! %s\033[0m\n" "$1"; }

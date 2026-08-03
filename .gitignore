@@ -105,3 +105,7 @@ secrets/
 # runtime state (sockets, SavedState, the server binary). Machine-specific
 # and not configuration.
 iterm2/
+
+# Machine-local marker written by a site plugin to silence a host-specific
+# shell-rc validator. Not configuration.
+skip-rc-validation

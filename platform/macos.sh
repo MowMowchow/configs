@@ -6,6 +6,11 @@ BREW_FORMULAE=(
   zsh-syntax-highlighting zoxide fzf ripgrep fd
   node python@3.13 luarocks
   stylua clang-format go
+  # nvim-treesitter's main branch is a parser *installer*: it shells out to
+  # this to compile every grammar, so without it no parser builds and nothing
+  # highlights. Linux gets it from _install_cargo_tools; the Mac had no path
+  # to it at all. See nvim/lua/jhou/lazy/treesitter.lua (needs >= 0.26.1).
+  tree-sitter-cli
   spicetify-cli
 )
 

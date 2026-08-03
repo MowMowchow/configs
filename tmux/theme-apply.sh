@@ -92,9 +92,19 @@ install_hooks() {
 main() {
   local arg="${1:-}"
 
+  # --init means tmux.conf has just been parsed, which re-asserted every
+  # `set -g` in it — including the plain window-status-* fallbacks, clobbering
+  # the coloured ones the palette conf had installed. So --init must re-source
+  # unconditionally; the @theme_state guard below would otherwise see an
+  # unchanged theme identity, exit 0, and leave the clobber in place.
+  #
+  # That is exactly what a `prefix + r` did: it stripped the themed window
+  # formats permanently, until the theme identity happened to change.
+  local force=0
   if [ "$arg" = "--init" ]; then
     install_hooks
     arg=""
+    force=1
   fi
 
   local appearance conf
@@ -111,7 +121,7 @@ main() {
   want=$(sed -n 's/^# theme-id: //p' "$conf")
   # -q so an unset @theme_state is not logged as "invalid option" on first run.
   have=$($TMUX_BIN show -gqv @theme_state 2>/dev/null)
-  if [ -n "$want" ] && [ "$want" = "$have" ]; then
+  if [ "$force" -eq 0 ] && [ -n "$want" ] && [ "$want" = "$have" ]; then
     exit 0
   fi
 

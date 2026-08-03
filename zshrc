@@ -177,7 +177,14 @@ add-zsh-hook precmd _deferred_init
 
 
 # ALIAS
-alias ls="eza --long --git --color=always --icons=always"
+# Guarded: eza is a cargo/brew install that can legitimately be missing (a
+# fresh box mid-install, or a host where the cargo tools were skipped).
+# Aliasing `ls` to something absent breaks a command muscle memory reaches for
+# constantly, and the error names eza rather than the alias, so it reads as
+# though ls itself is gone.
+if command -v eza >/dev/null; then
+  alias ls="eza --long --git --color=always --icons=always"
+fi
 # alias cd="z"
 
 
@@ -205,61 +212,69 @@ fi
 
 
 ### TMUX WINDOW RENAMING
-# Only run these hooks if we're inside tmux
-[[ -z "$TMUX" ]] && return
+# Only define these hooks inside tmux.
+#
+# This was `[[ -z "$TMUX" ]] && return`, which made the entire rest of this
+# file dead code in any shell not started under tmux. Everything below the
+# guard was silently lost there: the $PATH additions (so ~/.local/bin was
+# absent and theme-manager and sl were unreachable), COLORTERM, and the
+# aliases. Scoping it to an `if` keeps the guard on the hooks it was meant
+# for, and means appending to this file can never silently do nothing.
+if [[ -n "$TMUX" ]]; then
 
-# Function to rename the tmux window based on our conditions
-rename_tmux_window() {
-  local cmd="$1"
-  local dir_name
-  local window_name
+  # Function to rename the tmux window based on our conditions
+  rename_tmux_window() {
+    local cmd="$1"
+    local dir_name
+    local window_name
 
-  # Get the current directory name (or "root" if at '/')
-  dir_name="$(basename "$PWD")"
-  [[ -z "$dir_name" ]] && dir_name="root"
+    # Get the current directory name (or "root" if at '/')
+    dir_name="$(basename "$PWD")"
+    [[ -z "$dir_name" ]] && dir_name="root"
 
-  if [[ -n "$VIRTUAL_ENV" && "$cmd" == "nvim" ]]; then
-    # If in a virtual environment AND running nvim, prefix with "-> " and append /nvim
-    window_name="-> ${dir_name}/nvim"
-  elif [[ "$cmd" == "nvim" ]]; then
-    # If just running nvim, show "dir/nvim"
-    window_name="${dir_name}/nvim"
-  elif [[ -n "$VIRTUAL_ENV" ]]; then
-    # If in a virtual environment, prefix the directory name with "-> "
-    window_name="-> ${dir_name}"
-  else
-    # Otherwise, just the directory name
-    window_name="${dir_name}"
-  fi
+    if [[ -n "$VIRTUAL_ENV" && "$cmd" == "nvim" ]]; then
+      # If in a virtual environment AND running nvim, prefix with "-> " and append /nvim
+      window_name="-> ${dir_name}/nvim"
+    elif [[ "$cmd" == "nvim" ]]; then
+      # If just running nvim, show "dir/nvim"
+      window_name="${dir_name}/nvim"
+    elif [[ -n "$VIRTUAL_ENV" ]]; then
+      # If in a virtual environment, prefix the directory name with "-> "
+      window_name="-> ${dir_name}"
+    else
+      # Otherwise, just the directory name
+      window_name="${dir_name}"
+    fi
 
-  # Truncate to 20 characters and add a leading space
-  window_name=" ${window_name:0:20}"
-  tmux rename-window "$window_name"
-}
+    # Truncate to 20 characters and add a leading space
+    window_name=" ${window_name:0:20}"
+    tmux rename-window "$window_name"
+  }
 
-# preexec: before executing any command, update the window name
-preexec() {
-  rename_tmux_window "$1"
-}
+  # preexec: before executing any command, update the window name
+  preexec() {
+    rename_tmux_window "$1"
+  }
 
-# precmd: before the prompt is displayed, update the window name
-precmd() {
-  rename_tmux_window ""
-}
+  # precmd: before the prompt is displayed, update the window name
+  precmd() {
+    rename_tmux_window ""
+  }
 
-# chpwd hook: update the window name right after a directory change
-autoload -Uz add-zsh-hook
-add-zsh-hook chpwd chpwd_rename_tmux
-chpwd_rename_tmux() {
-  rename_tmux_window ""
-}
+  # chpwd hook: update the window name right after a directory change
+  autoload -Uz add-zsh-hook
+  add-zsh-hook chpwd chpwd_rename_tmux
+  chpwd_rename_tmux() {
+    rename_tmux_window ""
+  }
 
-# Override the nvim command so that it updates the window name when entering and exiting nvim
-nvim() {
-  rename_tmux_window "nvim"
-  command nvim "$@"
-  rename_tmux_window ""
-}
+  # Override the nvim command so that it updates the window name when entering and exiting nvim
+  nvim() {
+    rename_tmux_window "nvim"
+    command nvim "$@"
+    rename_tmux_window ""
+  }
+fi
 
 
 export COLORTERM=truecolor
@@ -267,11 +282,16 @@ export PATH="$PATH:$HOME/.spicetify"
 
 export PATH="$HOME/.local/bin:$PATH"
 
+# Cargo. rustup is installed with --no-modify-path on the assumption that
+# "zshrc owns PATH" — this is the line that makes that true. Without it
+# ~/.cargo/bin was on nobody's PATH, so cargo-installed tools (eza, stylua,
+# tree-sitter-cli) were invisible, and the installer's own `need cargo` was
+# false on every run after the first.
+export PATH="$HOME/.cargo/bin:$PATH"
+
 # Sapling, per upstream install instructions
 # (https://sapling-scm.com/docs/introduction/installation/).
 export PATH="$HOME/.local/share/sapling:$PATH"
-
-export CLAUDE_CODE_EFFORT_LEVEL="MAX"
 
 
 alias n="nvim"

@@ -1,10 +1,11 @@
-.PHONY: help check check-public test build install
+.PHONY: help check check-public lint-tmux test build install
 
 help:
 	@echo "make check-public  Fail if the tracked tree mentions anything private"
+	@echo "make lint-tmux     Fail on tmux format strings tmux would silently drop"
 	@echo "make test          Run the theme-manager test suite"
 	@echo "make build         Build theme-manager (release)"
-	@echo "make check         check-public + test"
+	@echo "make check         check-public + lint-tmux + test"
 	@echo "make install       Run the installer for this platform"
 
 # Markers that must never appear in a tracked file. Add your employer's
@@ -40,13 +41,31 @@ check-public:
 	fi; \
 	echo "OK: no site plugin is tracked"
 
+# `#{window_name:0:20}` is *shell* substring syntax. tmux has no such format
+# modifier, does not warn, and expands the whole thing to "" — so the status
+# bar just renders blank and nothing anywhere says why. That shipped unnoticed
+# for a long time. tmux's truncation is `#{=20:window_name}`.
+#
+# The trailing filter drops comment lines: the fix for this bug documents the
+# broken syntax in a comment, which would otherwise trip the lint on itself.
+lint-tmux:
+	@bad=$$(grep -nE '#\{[a-z_]+:[0-9]+:[0-9]+\}' tmux/*.conf 2>/dev/null \
+	        | grep -vE '^[^:]*:[0-9]+:[[:space:]]*#' || true); \
+	if [ -n "$$bad" ]; then \
+	  echo "$$bad" | sed 's/^/      /'; \
+	  echo "FAIL: shell substring syntax in a tmux format — tmux expands it to \"\"."; \
+	  echo "      Use #{=N:var} to truncate."; \
+	  exit 1; \
+	fi; \
+	echo "OK: no shell-substring syntax in tmux formats"
+
 test:
 	@cd theme-manager && cargo test --release
 
 build:
 	@cd theme-manager && cargo build --release
 
-check: check-public test
+check: check-public lint-tmux test
 
 install:
 	@./install.sh
