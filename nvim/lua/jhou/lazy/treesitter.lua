@@ -4,7 +4,17 @@
 -- built-in treesitter hooks (`vim.treesitter.start`, `vim.treesitter.foldexpr`,
 -- `nvim-treesitter.indentexpr`).
 --
--- Requires: nvim 0.12+, tree-sitter-cli >= 0.26.1 on PATH, a C compiler.
+-- Requires: nvim 0.12+ (a normal stable release, not a nightly),
+-- tree-sitter-cli >= 0.26.1 on PATH, and a C compiler.
+--
+-- Note the >= : upstream never published 0.26.1 exactly — the series goes
+-- 0.25.x then 0.26.3 — so 0.26.3+ is what satisfies it. Sources, in order of
+-- preference: `:MasonInstall tree-sitter-cli` (no sudo, works on every
+-- platform, installs under ~/.local/share/nvim so it survives an ephemeral
+-- host), brew, cargo, dnf, npm.
+--
+-- On 0.11 the plugin still LOADS — the version check is a checkhealth error,
+-- not a load guard — but treat that as degraded, not supported.
 
 local langs = {
   "c", "lua", "vim", "vimdoc",

@@ -14,7 +14,7 @@
 # elsewhere. Each of those blocks records WHY in a comment; do not "simplify"
 # one back to apt without checking the version it ships.
 #
-#   neovim  apt 0.9.5  -> snap        (lsp.lua needs vim.lsp.config, 0.11+)
+#   neovim  apt 0.9.5  -> snap        (nvim-treesitter main needs 0.12+)
 #   kitty   apt 0.32.2 -> tarball     (need >= 0.36 for *.auto.conf switching)
 #   node    apt 18.x   -> NodeSource  (Mason servers + prettier want >= 20)
 #   fonts   apt subset -> tarball     (Nerd Font glyphs)
@@ -51,7 +51,11 @@ SAPLING_VERSION="${SAPLING_VERSION:-0.2.20260317-201835+0234c21f}"
 XREMAP_VERSION="${XREMAP_VERSION:-0.15.5}"
 FASTFETCH_VERSION="${FASTFETCH_VERSION:-2.66.0}"
 # Only used for the no-snap tarball fallback; the snap tracks stable itself.
-NVIM_VERSION="${NVIM_VERSION:-v0.11.4}"
+#
+# 0.12+, not 0.11: nvim-treesitter's main branch — which nvim/lua/jhou/lazy/
+# treesitter.lua uses — requires it. 0.12 is a normal stable release, not a
+# nightly, so there is no stability cost to meeting that floor.
+NVIM_VERSION="${NVIM_VERSION:-v0.12.4}"
 
 # ── Preflight ────────────────────────────────────────────────────
 
@@ -257,7 +261,7 @@ _install_neovim_tarball() {
     aarch64 | arm64) arch=arm64 ;;
     *) arch=x86_64 ;;
   esac
-  info "  installing neovim $NVIM_VERSION ($arch) — apt's 0.9.5 is below the 0.11 floor"
+  info "  installing neovim $NVIM_VERSION ($arch) — apt's 0.9.5 is far below the 0.12 floor"
   local tmp; tmp="$(mktemp -d)"
   if curl -fsSL "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-${arch}.tar.gz" -o "$tmp/nvim.tgz" \
       && rm -rf "$dir" && mkdir -p "$dir" \
@@ -265,7 +269,7 @@ _install_neovim_tarball() {
     ln -sf "$dir/bin/nvim" "$LOCAL_BIN/nvim"
     ok "nvim $NVIM_VERSION -> $LOCAL_BIN (tarball)"
   else
-    warn "neovim tarball failed — no nvim >= 0.11; plugins will not bootstrap"
+    warn "neovim tarball failed — no nvim >= 0.12; treesitter will not work"
   fi
   rm -rf "$tmp"
 }
