@@ -31,9 +31,10 @@ events via `uinput`. Two layered keymaps:
 xremap's config lives in this repo at [`xremap/config.yml`](../xremap/config.yml);
 the daemon reads it directly because the repo IS `~/.config`.
 
-## What `install-linux.sh` does for you
+## What the installer does for you
 
-The Phase-11 block:
+`./install.sh` dispatches to `platform/linux.sh`; this is the `keybinds` stage
+(`platform/stages/keybinds.sh`):
 
 1. Downloads the upstream prebuilt `xremap-linux-x86_64-x11.zip`, extracts the single binary into `~/.local/xremap.app/`, and shims it at `~/.local/bin/xremap`. (Same pattern as kitty and sapling.)
 2. Drops `/etc/udev/rules.d/99-input.rules` granting `input` group members read/write access to `/dev/uinput`, plus `/etc/modules-load.d/uinput.conf` so the module loads at boot.
@@ -41,7 +42,30 @@ The Phase-11 block:
 4. If on GNOME, rewrites the conflicting GNOME shortcuts via `gsettings` (see table below).
 5. Writes `~/.config/systemd/user/xremap.service` pointing at `~/.config/xremap/config.yml`, then `enable --now`s it.
 
-Everything is idempotent — re-running the script doesn't double-install or duplicate udev rules.
+Everything is idempotent — re-running the installer doesn't double-install or
+duplicate udev rules.
+
+### When the stage skips itself
+
+It is not unconditional. Two cases where doing the work would be wrong, and
+the stage says so and returns instead:
+
+- **No graphical session** (`DISPLAY` and `WAYLAND_DISPLAY` both unset) — an
+  SSH devserver, a container, a server install. `systemctl --user enable
+  --now` would otherwise block for the full 90s start timeout waiting on a
+  `DISPLAY` that never arrives, then leave the unit restarting for the rest
+  of the session; and the `input`-group membership below is real
+  keystroke-capture privilege to hand a host that can never use it.
+
+- **A Wayland session**, which is Ubuntu 24.04's default. The prebuilt x11
+  binary does not fail cleanly there — it starts (GNOME exports `DISPLAY`
+  via XWayland) but cannot read `WM_CLASS` for Wayland-native windows, so
+  the terminal layer silently stops matching and every binding falls through
+  to the global block. `Super+C` becomes SIGINT and `Super+S` becomes XOFF
+  inside your shell, which is worse than not running at all. Using xremap
+  under Wayland needs the GNOME build plus the companion Xremap GNOME Shell
+  extension, which cannot be installed non-interactively — so log into an
+  Xorg session, or set it up by hand.
 
 ### GNOME `gsettings` keys we touch
 
@@ -120,7 +144,7 @@ journalctl --user -u xremap.service -n 30
 ```
 
 If `groups` doesn't include `input`, you haven't logged out and back in since
-running install-linux.sh.
+running the installer.
 
 ## Extending
 

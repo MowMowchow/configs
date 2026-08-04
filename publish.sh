@@ -115,17 +115,39 @@ ok "on $BRANCH (at $(git -C "$WORK" rev-parse --short HEAD))"
 
 # ── Copy exactly the files git tracks here ───────────────────────
 info "Syncing the sanitized tree"
-# --delete so a file removed here is removed there; --exclude .git so we never
-# touch the target's history. The file list comes from `git ls-files`, which by
-# construction excludes everything gitignored — i.e. all of site/<private>/.
-git -C "$DOTFILES" ls-files -z > "$WORK/.publish-manifest"
-rsync -a --delete --exclude '.git' --exclude '.publish-manifest' \
-      --files-from=<(tr '\0' '\n' < "$WORK/.publish-manifest") --from0=no \
-      "$DOTFILES/" "$WORK/" 2>/dev/null \
-  || rsync -a --exclude '.git' --files-from=<(tr '\0' '\n' < "$WORK/.publish-manifest") \
-      "$DOTFILES/" "$WORK/"
-rm -f "$WORK/.publish-manifest"
-ok "$(git -C "$DOTFILES" ls-files | wc -l | tr -d ' ') files"
+# The file list comes from `git ls-files`, which by construction excludes
+# everything gitignored — i.e. all of site/<private>/. --exclude .git so we
+# never touch the target's history.
+MANIFEST_DIR="$(mktemp -d)"
+trap 'rm -rf "$MANIFEST_DIR"' EXIT
+git -C "$DOTFILES" ls-files -z > "$MANIFEST_DIR/manifest0"
+tr '\0' '\n' < "$MANIFEST_DIR/manifest0" | sort > "$MANIFEST_DIR/wanted"
+
+rsync -a --exclude '.git' --files-from="$MANIFEST_DIR/wanted" "$DOTFILES/" "$WORK/"
+
+# Prune whatever the source no longer tracks.
+#
+# This used to be `rsync --delete`, which does nothing here: --delete is
+# inert when combined with --files-from, because rsync is transferring an
+# explicit list and has no directory tree to diff the destination against.
+# The comment claimed deletion; no deletion happened. The public repo had
+# therefore kept every file ever removed from this one — 17 of them, among
+# them both superseded installers, the old theme scripts, dead
+# theme-manager sources, and a .DS_Store — while PUBLISHING.md advertised
+# "exactly git ls-files".
+( cd "$WORK" && find . -type f -not -path './.git/*' | sed 's|^\./||' | sort ) \
+  > "$MANIFEST_DIR/actual"
+PRUNED=0
+while IFS= read -r stale; do
+  [ -n "$stale" ] || continue
+  rm -f "$WORK/$stale"
+  PRUNED=$((PRUNED + 1))
+done < <(comm -23 "$MANIFEST_DIR/actual" "$MANIFEST_DIR/wanted")
+# Directories git never tracked, only their contents; drop any left empty.
+find "$WORK" -mindepth 1 -type d -not -path "$WORK/.git/*" -not -path "$WORK/.git" \
+     -empty -delete 2>/dev/null || true
+
+ok "$(wc -l < "$MANIFEST_DIR/wanted" | tr -d ' ') files$([ "$PRUNED" -gt 0 ] && echo ", $PRUNED stale removed")"
 
 # ── Gate 3: re-check the result, not the source ──────────────────
 info "Re-checking the published tree"

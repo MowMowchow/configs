@@ -1,5 +1,0 @@
-# Active theme configuration
-# THEME_FAMILY: catppuccin | gruvbox | gruvbox-material
-# CONTRAST: hard | medium | soft (only applies to gruvbox/gruvbox-material)
-THEME_FAMILY=gruvbox-material
-CONTRAST=hard

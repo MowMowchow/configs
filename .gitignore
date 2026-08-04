@@ -32,7 +32,7 @@ yarn/
 raycast/
 binwalk/
 
-# Linux install artifacts (written by install-linux.sh phase 9)
+# Linux install artifacts (written by the platform/linux.sh install)
 systemd/
 
 # Defunct: neofetch was archived upstream and replaced by fastfetch.
