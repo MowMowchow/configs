@@ -163,6 +163,22 @@ fn apply_appearance(config: &Config, app: appearance::Appearance) -> bool {
         }
     }
 
+    // Record the resolved appearance where anything without an OS to ask can
+    // read it.
+    //
+    // Only tmux/theme-apply.sh wrote this before, and that runs on remote hosts
+    // only — so on a machine driven by this binary the file was whatever a sync
+    // last seeded and then never moved again. Neovim's startup path reads it to
+    // pick `background`, so a stale pointer means every freshly launched editor
+    // gets the wrong one until something re-applies. Writing it here makes the
+    // binary the single writer on every platform it runs on.
+    //
+    // Best-effort and atomic: a concurrent reader must never see a half-written
+    // value, and failing to record state must not fail the apply.
+    if let Err(e) = write_appearance_pointer(app) {
+        eprintln!("[theme-manager] appearance pointer: {}", e);
+    }
+
     // Run each adapter independently — one failure must not block others.
     // This follows the bulkhead pattern: isolate failure domains.
     let results: [(&str, Result<(), String>); 3] = [
@@ -391,4 +407,34 @@ fn capitalize(s: &str) -> String {
         None => String::new(),
         Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
     }
+}
+
+/// Persist the active appearance to `~/.local/state/theme-manager/appearance`.
+///
+/// Consumers have no OS appearance API of their own: Neovim's startup path, and
+/// tmux on builds older than 3.6 which lack `#{client_theme}`.
+///
+/// Written via a temp file and renamed, because a reader that catches a
+/// partially written file sees neither "dark" nor "light" and silently falls
+/// back to a default.
+fn write_appearance_pointer(app: appearance::Appearance) -> Result<(), String> {
+    let dir = dirs_state_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| format!("create {}: {}", dir.display(), e))?;
+    let final_path = dir.join("appearance");
+    let tmp = dir.join("appearance.tmp");
+    std::fs::write(&tmp, app.to_string()).map_err(|e| format!("write temp: {}", e))?;
+    std::fs::rename(&tmp, &final_path).map_err(|e| format!("rename: {}", e))?;
+    Ok(())
+}
+
+/// `$XDG_STATE_HOME/theme-manager`, falling back to `~/.local/state`.
+fn dirs_state_dir() -> std::path::PathBuf {
+    std::env::var_os("XDG_STATE_HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+                .join(".local")
+                .join("state")
+        })
+        .join("theme-manager")
 }

@@ -45,6 +45,34 @@ pcall(function()
 		if v then variant = v end
 	end
 
+	-- Dark or light. This was missing entirely: config.toml carries `family`
+	-- and `variant`, but `variant` is CONTRAST (medium/soft/hard), not
+	-- appearance — so nothing here ever set `background` and every freshly
+	-- launched nvim used the default, dark, whatever the system was set to.
+	--
+	-- Live switching always worked, because theme-manager's neovim adapter
+	-- pushes `set background=...` over the socket in settings.lua to instances
+	-- that are already running. Only startup was wrong, which is why it looked
+	-- intermittent: correct after a theme change, wrong on a new window.
+	--
+	-- The pointer first: it is a file read, it is what theme-manager now
+	-- writes on every apply, and it is the only option on a remote host with
+	-- no OS appearance to query. Fall back to asking macOS directly, which
+	-- costs a ~20ms fork and so is not the default path.
+	local appearance
+	local pf = vim.fn.expand("~/.local/state/theme-manager/appearance")
+	local pok, pdata = pcall(vim.fn.readfile, pf)
+	if pok and pdata and pdata[1] then
+		local a = vim.trim(pdata[1])
+		if a == "dark" or a == "light" then appearance = a end
+	end
+	if not appearance and vim.fn.has("mac") == 1 then
+		-- `defaults read` exits non-zero in Light mode, when the key is absent.
+		local out = vim.fn.system({ "defaults", "read", "-g", "AppleInterfaceStyle" })
+		appearance = (vim.v.shell_error == 0 and out:match("Dark")) and "dark" or "light"
+	end
+	vim.o.background = appearance or "dark"
+
 	if family == "gruvbox-material" then
 		vim.g.gruvbox_material_background = variant or "medium"
 		vim.g.gruvbox_material_foreground = "material"
