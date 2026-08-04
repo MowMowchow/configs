@@ -77,18 +77,32 @@ return {
       end
     end
 
-    -- Highlighting: Neovim's vim.treesitter.start picks up the right parser
-    -- by filetype. No-op for filetypes whose parser isn't installed yet.
-    vim.api.nvim_create_autocmd("FileType", {
-      pattern = fts,
-      callback = function() vim.treesitter.start() end,
-    })
-
-    -- Indent: still upstream-experimental, but on for parity with the old
-    -- `indent = { enable = true }` behaviour.
+    -- Highlighting, plus the treesitter indentexpr when — and only when —
+    -- highlighting actually started.
+    --
+    -- pcall is load-bearing. The comment here used to claim vim.treesitter.start
+    -- was "a no-op for filetypes whose parser isn't installed yet"; it is not.
+    -- It asserts, so opening a file whose parser is missing threw a wall of Lua
+    -- traceback from inside the FileType autocmd and needed a keypress to
+    -- dismiss, on every single buffer of that type.
+    --
+    -- A parser being absent is ordinary, not exceptional: a fresh host has none
+    -- until they compile, a download can fail behind a proxy, and `langs` can
+    -- name a language whose parser was never built. The right behaviour is to
+    -- fall back to regex syntax silently, which is exactly what happens if
+    -- start() is simply not called.
+    --
+    -- Both settings hang off one autocmd so they cannot disagree: setting
+    -- indentexpr separately would point indenting at a parser that does not
+    -- exist, turning every `=` into an error at the moment you press it.
     vim.api.nvim_create_autocmd("FileType", {
       pattern = fts,
       callback = function()
+        if not pcall(vim.treesitter.start) then
+          return
+        end
+        -- Indent: still upstream-experimental, but on for parity with the old
+        -- `indent = { enable = true }` behaviour.
         vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
       end,
     })
