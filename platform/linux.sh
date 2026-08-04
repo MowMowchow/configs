@@ -574,6 +574,11 @@ platform_keybinds_present() {
 # proxy is configured before the network-heavy stages run.
 
 stage site_bootstrap work
+
+# curlrc first: a ~/.curlrc pointing at an unreachable proxy breaks every
+# download below, and does it in a way that names no cause. Warn before the
+# network-heavy stages rather than after they fail mysteriously.
+stage curlrc
 # rust BEFORE packages: the packages stage calls _install_cargo_tools, which
 # needs cargo. With packages first, `need cargo` was false on a clean box and
 # eza, stylua and tree-sitter-cli were skipped with only a warning — and since

@@ -119,6 +119,11 @@ platform_service_running() {
 # No `keybinds` stage: xremap is Linux-only and aerospace is configured
 # declaratively rather than installed by a stage.
 
+# curlrc first: a ~/.curlrc pointing at an unreachable proxy breaks every
+# download below, and does it in a way that names no cause. Warn before the
+# network-heavy stages rather than after they fail mysteriously.
+stage curlrc
+
 stage site_bootstrap work
 stage packages
 stage fonts
