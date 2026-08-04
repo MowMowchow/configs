@@ -48,8 +48,11 @@ return {
       -- routinely blew past it — you paid the full stall AND lost the format,
       -- since conform discards the result on timeout.
       --
-      -- 1000ms covers every fast formatter here (prettier, stylua, rustfmt,
-      -- gofmt, clang_format, black/isort) with room to spare.
+      -- 3000ms, not 1000. 1000 was measurably too tight: stylua's FIRST
+      -- invocation in a session exceeds it, conform then falls through to the
+      -- LSP, and lua_ls reformats to a different style than stylua would —
+      -- so a save silently produced the wrong formatting rather than none.
+      -- Warm runs are ~50ms; this budget is for the cold start.
       format_on_save = function(bufnr)
         -- sqlfluff is the one that cannot meet a blocking budget. Send SQL
         -- down the async path instead: the write completes immediately and the
@@ -57,7 +60,7 @@ return {
         if vim.bo[bufnr].filetype == "sql" then
           return nil
         end
-        return { lsp_format = "fallback", timeout_ms = 1000 }
+        return { lsp_format = "fallback", timeout_ms = 3000 }
       end,
       format_after_save = function(bufnr)
         if vim.bo[bufnr].filetype ~= "sql" then
