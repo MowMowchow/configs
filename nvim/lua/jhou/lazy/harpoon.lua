@@ -5,6 +5,17 @@ return {
         "nvim-lua/plenary.nvim"
     },
 
+    -- Deferred until a harpoon key is pressed. Every mapping harpoon's config
+    -- sets is listed here; miss one and it would silently stop working, so
+    -- this list must stay in sync with the vim.keymap.set calls below.
+    keys = {
+        { "<leader>ha", desc = "Harpoon add file" },
+        { "<leader>hl", desc = "Harpoon quick menu" },
+        { "<leader>hr", desc = "Harpoon recency list" },
+        { "<C-p>", desc = "Harpoon prev" },
+        { "<C-n>", desc = "Harpoon next" },
+    },
+
     config = function()
         local harpoon = require("harpoon")
 

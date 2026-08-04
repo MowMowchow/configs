@@ -1,5 +1,8 @@
 return {
 	'nvimdev/lspsaga.nvim',
+	-- Deferred: every mapping this sets is LSP-driven, so there is nothing
+	-- for it to do until a language server actually attaches.
+	event = "LspAttach",
 	dependencies = {
 		'nvim-treesitter/nvim-treesitter', -- optional
 		'nvim-tree/nvim-web-devicons',     -- optional
@@ -93,7 +96,13 @@ return {
 
 
 		-- lsp saga finder references/implementations for selection/highlight
-		vim.keymap.set({'n', 'v'}, '<leader>f', function()
+		--
+		-- <leader>fr, not <leader>f: the bare <leader>f was a strict prefix of
+		-- <leader>fm (format, remap.lua), so pressing it stalled for the whole
+		-- 'timeoutlen' — a full second — while Neovim waited to see whether an
+		-- `m` was coming. Neither key is a prefix of the other now, so both fire
+		-- immediately.
+		vim.keymap.set({'n', 'v'}, '<leader>fr', function()
 		  	local visual_selection = function()
 		  		vim.cmd('noau normal! "vy"')
 		  	  	return vim.fn.getreg('v')

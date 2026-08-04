@@ -1,5 +1,8 @@
 return {
   "RRethy/vim-illuminate",
+  -- Deferred: highlighting other occurrences of the word under the cursor is
+  -- meaningless until a real file is open.
+  event = { "BufReadPost", "BufNewFile" },
   opts = {
     providers = {
       "lsp",

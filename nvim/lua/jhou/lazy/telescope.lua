@@ -3,6 +3,16 @@ return {
 
 	tag = "0.1.8",
 
+	-- Deferred: nothing here is needed until you actually open a picker.
+	-- lazy.nvim installs stub mappings for `keys` and loads the plugin on first
+	-- press, so the bindings behave identically -- they just cost nothing at
+	-- startup. `cmd` covers :Telescope invoked directly.
+	cmd = "Telescope",
+	keys = {
+		{ "<leader>pf", desc = "Telescope find files" },
+		{ "<leader>pg", desc = "Telescope live grep" },
+	},
+
 	dependencies = {
 		"nvim-lua/plenary.nvim"
 	},

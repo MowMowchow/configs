@@ -2,6 +2,13 @@ return {
     'saghen/blink.cmp',
     version = '1.*',
 
+    -- Deferred to the first insert/command-line. Completion cannot be wanted
+    -- before then, and lsp.lua's `require("blink.cmp").get_lsp_capabilities()`
+    -- pulls it in earlier anyway when a buffer opens -- an explicit require
+    -- loads a lazy plugin regardless of its trigger -- so LSP capabilities are
+    -- unaffected.
+    event = { "InsertEnter", "CmdlineEnter" },
+
     opts = {
         -- Use Lua fuzzy matching: the prebuilt Rust binary download fails behind
         -- some corporate proxies, and the Lua path needs no network at all

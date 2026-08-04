@@ -14,6 +14,14 @@ function M.record_visit(filepath)
 end
 
 function M.prune()
+  -- Count first. This runs on every BufEnter, and the build-plus-sort below is
+  -- wasted work in the overwhelmingly common case of being under the cap —
+  -- previously it sorted the whole table on every buffer switch just to
+  -- discover there was nothing to drop.
+  local n = 0
+  for _ in pairs(M.visited) do n = n + 1 end
+  if n <= M.max_entries then return end
+
   local entries = {}
   for path, time in pairs(M.visited) do
     table.insert(entries, { path = path, time = time })

@@ -43,11 +43,28 @@ return {
         -- Lua
         lua = { "stylua" },
       },
-      format_on_save = {
-        lsp_fallback = true,
-        async = false,
-        timeout_ms = 5000,
-      },
+      -- Synchronous on save, so a slow formatter freezes the editor for its
+      -- whole budget. 5000ms was long enough to feel like a hang, and sqlfluff
+      -- routinely blew past it — you paid the full stall AND lost the format,
+      -- since conform discards the result on timeout.
+      --
+      -- 1000ms covers every fast formatter here (prettier, stylua, rustfmt,
+      -- gofmt, clang_format, black/isort) with room to spare.
+      format_on_save = function(bufnr)
+        -- sqlfluff is the one that cannot meet a blocking budget. Send SQL
+        -- down the async path instead: the write completes immediately and the
+        -- formatted result lands in a follow-up write.
+        if vim.bo[bufnr].filetype == "sql" then
+          return nil
+        end
+        return { lsp_format = "fallback", timeout_ms = 1000 }
+      end,
+      format_after_save = function(bufnr)
+        if vim.bo[bufnr].filetype ~= "sql" then
+          return nil
+        end
+        return { lsp_format = "fallback" }
+      end,
       formatters = {
         sqlfluff = {
           command = "sqlfluff",

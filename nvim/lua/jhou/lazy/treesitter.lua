@@ -41,17 +41,34 @@ return {
       end,
     })
 
+    -- `langs` holds tree-sitter PARSER names, which is what install() wants —
+    -- but a FileType autocmd pattern matches &filetype, and the two namespaces
+    -- are not the same. There is no filetype called `tsx` (a .tsx file is
+    -- `typescriptreact`), none called `vimdoc` (that is `help`), and
+    -- `javascriptreact` has no parser of its own so it never appeared here at
+    -- all. Those patterns simply never fired, so .tsx and .jsx buffers silently
+    -- fell back to regex syntax and the ftplugin indentexpr.
+    --
+    -- get_filetypes does the mapping properly: nvim-treesitter's
+    -- plugin/filetypes.lua registers the aliases (tsx -> typescriptreact,
+    -- typescript.tsx) and lazy.nvim sources plugin/ before running config, so
+    -- they are registered by the time this runs.
+    local fts = {}
+    for _, lang in ipairs(langs) do
+      vim.list_extend(fts, vim.treesitter.language.get_filetypes(lang))
+    end
+
     -- Highlighting: Neovim's vim.treesitter.start picks up the right parser
     -- by filetype. No-op for filetypes whose parser isn't installed yet.
     vim.api.nvim_create_autocmd("FileType", {
-      pattern = langs,
+      pattern = fts,
       callback = function() vim.treesitter.start() end,
     })
 
     -- Indent: still upstream-experimental, but on for parity with the old
     -- `indent = { enable = true }` behaviour.
     vim.api.nvim_create_autocmd("FileType", {
-      pattern = langs,
+      pattern = fts,
       callback = function()
         vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
       end,

@@ -1,5 +1,8 @@
 return {
 	'nvim-lualine/lualine.nvim',
+	-- VeryLazy: the statusline is cosmetic, so it can appear a few ms after the
+	-- first buffer instead of blocking startup.
+	event = "VeryLazy",
 	dependencies = { 
 		'nvim-tree/nvim-web-devicons' 
 	},
@@ -21,10 +24,16 @@ return {
 				always_divide_middle = true,
 				always_show_tabline = true,
 				globalstatus = false,
+				-- lualine's default is 1000ms. At 100 this redrew the
+				-- statusline ten times as often, forever, for no visible gain:
+				-- lualine also refreshes on ModeChanged/BufEnter/etc, so the
+				-- timer is only a fallback for things nothing signals (clock,
+				-- filesize). tabline and winbar are both empty here, so those
+				-- two timers never armed at all.
 				refresh = {
-					statusline = 100,
-					tabline = 100,
-					winbar = 100,
+					statusline = 1000,
+					tabline = 1000,
+					winbar = 1000,
 				}
 			},
 			sections = {

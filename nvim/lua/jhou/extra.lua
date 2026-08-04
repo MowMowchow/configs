@@ -2,7 +2,9 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   desc =  'Highlight when yanking text',
   group = vim.api.nvim_create_augroup('kickstart-highlight-yank', {clear = true}),
   callback = function()
-    vim.highlight.on_yank()
+    -- vim.hl, not vim.highlight: renamed in 0.11. The old name still works via
+    -- a deprecation shim, but it is scheduled for removal.
+    vim.hl.on_yank()
   end,
 })
 

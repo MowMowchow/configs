@@ -1,6 +1,12 @@
 return {
 	"echasnovski/mini.files",
 	version = false,
+
+	-- Deferred: a file explorer is only needed once you ask for it.
+	keys = {
+		{ "<leader>e", desc = "Toggle file explorer" },
+		{ "<leader>E", desc = "Toggle file explorer (cwd)" },
+	},
 	config = function()
 		require("mini.files").setup({
 			content = {

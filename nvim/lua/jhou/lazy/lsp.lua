@@ -9,6 +9,8 @@ if site_managed then
   -- Site-managed: the plugin registers its own servers.
   return {
     "neovim/nvim-lspconfig",
+    -- Deferred: nothing to attach to until a buffer exists.
+    event = { "BufReadPre", "BufNewFile" },
     dependencies = {
       "saghen/blink.cmp",
     },
@@ -22,6 +24,15 @@ end
 -- On local Mac: Mason + external LSPs
 return {
   "neovim/nvim-lspconfig",
+    -- Deferred: an LSP client is only useful once there is a buffer to attach
+    -- to. BufReadPre fires before the first file is read, so servers still
+    -- attach to it -- nothing is lost opening `nvim file.py`.
+    --
+    -- The Mason commands are listed too because mason.nvim is a dependency
+    -- here: without them, `nvim` with no arguments followed by `:Mason` would
+    -- find no such command, since no BufReadPre had fired yet.
+    event = { "BufReadPre", "BufNewFile" },
+    cmd = { "Mason", "MasonInstall", "MasonUninstall", "MasonUninstallAll", "MasonLog", "MasonUpdate" },
   dependencies = {
     "williamboman/mason.nvim",
     "williamboman/mason-lspconfig.nvim",
@@ -37,6 +48,11 @@ return {
         "basedpyright",
         "clangd",
         "ts_ls",
+        -- html is configured and enabled below, so Mason has to actually
+        -- install it. It was missing here, so vscode-html-language-server was
+        -- never fetched: checkhealth reported "not executable. Configuration
+        -- will not be used." and html buffers silently got no LSP at all.
+        "html",
         "snyk_ls",
         -- "gopls",
       },

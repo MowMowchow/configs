@@ -35,7 +35,7 @@ Leader key: `<Space>`
 | `<leader>ptd` | Peek type definition (lspsaga) |
 | `<leader>gd` | Go to definition (lspsaga) |
 | `<leader>gtd` | Go to type definition (lspsaga) |
-| `<leader>f` | Find references/implementations (lspsaga) |
+| `<leader>fr` | Find references/implementations (lspsaga) |
 | `<leader>hh` | Hover info (lspsaga) |
 | `<leader>ha` | Harpoon add file |
 | `<leader>hl` | Harpoon list |
