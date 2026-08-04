@@ -53,9 +53,18 @@ return {
     -- plugin/filetypes.lua registers the aliases (tsx -> typescriptreact,
     -- typescript.tsx) and lazy.nvim sources plugin/ before running config, so
     -- they are registered by the time this runs.
-    local fts = {}
+    -- Dotted names are skipped: get_filetypes also returns legacy compound
+    -- filetypes like `typescript.tsx`, which Neovim no longer recognises and
+    -- checkhealth flags as unknown. The plain `typescriptreact` in the same
+    -- list already covers every real buffer, so they add nothing but noise.
+    local fts, seen = {}, {}
     for _, lang in ipairs(langs) do
-      vim.list_extend(fts, vim.treesitter.language.get_filetypes(lang))
+      for _, ft in ipairs(vim.treesitter.language.get_filetypes(lang)) do
+        if not ft:find("%.") and not seen[ft] then
+          seen[ft] = true
+          fts[#fts + 1] = ft
+        end
+      end
     end
 
     -- Highlighting: Neovim's vim.treesitter.start picks up the right parser

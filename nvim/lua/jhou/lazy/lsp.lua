@@ -99,7 +99,19 @@ return {
     })
 
     -- FE
-    vim.lsp.config("ts_ls", { capabilities = capabilities })
+    -- filetypes is respecified to drop the two legacy compound entries
+    -- nvim-lspconfig still ships (lsp/ts_ls.lua: 'javascript.jsx' and
+    -- 'typescript.tsx'). Neovim no longer produces those filetypes — .jsx is
+    -- `javascriptreact` and .tsx is `typescriptreact`, both kept below — so
+    -- they match nothing and only make checkhealth report two unknown
+    -- filetypes.
+    vim.lsp.config("ts_ls", {
+      capabilities = capabilities,
+      filetypes = {
+        "javascript", "javascriptreact",
+        "typescript", "typescriptreact",
+      },
+    })
     vim.lsp.config("html", { capabilities = capabilities })
 
     -- Enable all configured servers
